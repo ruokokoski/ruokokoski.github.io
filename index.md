@@ -1,5 +1,1 @@
-Here you can say lots of fun things about your site.
-
-Maybe say a some things about yourself.
-
-Or maybe what you plan to blog about.
+I’m Teemu Ruokokoski, a data science student interested in machine learning, deep learning, and artificial intelligence. This blog is my space to document what I learn and to share practical insights from ongoing research and projects.
