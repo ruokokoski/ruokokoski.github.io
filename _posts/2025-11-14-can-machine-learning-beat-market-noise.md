@@ -2,7 +2,7 @@
 
 Financial markets generate vast amounts of data daily, making it difficult for individual investors to distinguish meaningful signals from random fluctuations. While institutional traders rely on advanced algorithms and data-driven strategies, retail investors rarely have access to similar predictive tools.
 
-This project explores whether machine learning can help close that gap by forecasting next-day movements of S&P 500 stocks using historical market data. The model is built with XGBoost, a gradient boosting algorithm known for capturing complex, nonlinear relationships while maintaining strong generalization performance. It has shown solid results in time series forecasting, making it well suited for this task. The full implementation is available in a [here](https://github.com/ruokokoski/predistocks/blob/main/stock_predictor.ipynb).
+This project explores whether machine learning can help close that gap by forecasting next-day movements of S&P 500 stocks using historical market data. The model is built with XGBoost, a gradient boosting algorithm known for capturing complex, nonlinear relationships while maintaining strong generalization performance. It has shown solid results in time series forecasting, making it well suited for this task. The full implementation is available [here](https://github.com/ruokokoski/predistocks/blob/main/stock_predictor.ipynb).
 
 In traditional investing, technical indicators such as moving averages, RSI, and MACD have long been used to identify trends and momentum. Their usefulness is still debated: some believe they reflect genuine patterns in market behavior, while others see them as artifacts of randomness. This project examines whether combining these common indicators with raw price and volume data can improve the predictive accuracy of a machine learning model.
 
@@ -39,7 +39,7 @@ def load_stock_data(ticker, start_date, end_date):
 
 After data collection, the next step is to ensure input consistency and reliability through inspection and cleaning. This includes checking for missing values, analyzing distributions of prices and volumes, and identifying potential outliers that could bias predictions.
 
-Microsoft (MSFT) data from the past three years was used as an example. The dataset covers 750 trading days with no missing values in the key columns — Open, High, Low, Close, and Volume — making it suitable for modeling.
+Microsoft (MSFT) data from the past three years was used as an example. The dataset covers 750 trading days with no missing values in the key columns, **Open, High, Low, Close, and Volume**, making it suitable for modeling.
 
 Descriptive statistics provide a quick overview of the data:
 
@@ -53,11 +53,11 @@ Descriptive statistics provide a quick overview of the data:
 
 Visualizing closing prices (blue) and volumes (gray) reveals long-term trends and trading activity spikes, helping identify anomalies before modeling.
 
-![MSFT prices](../pics/msft_price.png)
+![MSFT prices](/pics/msft_price.png)
 
 Examining daily return and volume distributions further clarifies volatility behavior. Most returns fall within ±1%, while the volume histogram highlights periods of intensified trading, offering a clearer view of typical price fluctuations before model training.
 
-![MSFT distributions](../pics/msft_distributions.png)
+![MSFT distributions](/pics/msft_distributions.png)
 
 ### Feature Engineering
 
@@ -125,7 +125,7 @@ To illustrate differences between stocks, the table below summarizes the best-pe
 
 Visa’s lower performance likely reflects its recent sideways price movement. When a stock fluctuates within a narrow range without a clear trend, the model struggles to extract consistent predictive patterns. The figure below shows Visa’s price behavior over the past six months.
 
-![V prices](../pics/v_6m.png)
+![V prices](/pics/v_6m.png)
 
 ### Hyperparameter Optimization
 
@@ -159,13 +159,13 @@ The following plot illustrates MSFT’s walk-forward predictions:
 
 - **Bottom panel**: relative prediction errors in percentage terms.
 
-![MSFT predictions](../pics/msft_prediction.png)
+![MSFT predictions](/pics/msft_prediction.png)
 
 ### Feature Importance
 
 To understand what drives the model’s predictions, feature importance analysis was performed using the trained XGBoost model. Each input, whether a lagged price, moving average, or technical indicator, is assigned a score that reflects its influence on the prediction of the next day's stock price. Looking at the most recent training window, short-term lagged prices, moving averages, and RSI consistently rank as the most influential features, while other indicators play a smaller role. A visualization of the top 20 features makes it easy to see which pieces of historical data the model relies on most.
 
-![MSFT feature importance](../pics/msft_feature_importance.png)
+![MSFT feature importance](/pics/msft_feature_importance.png)
 
 Low-importance features can be pruned to simplify the model and reduce noise. Retraining the model after removing these features can enhance interpretability and sometimes improve accuracy. However, selecting the pruning threshold is another optimization problem: if it is too strict, useful information may be lost or if too loose, irrelevant features may remain.
 
@@ -175,7 +175,7 @@ After choosing the optimal hyperparameters, the model is retrained on the most r
 
 The figure below shows the model’s next-day closing price prediction for Netflix based on the most recent historical data.
 
-![Netflix prediction](../pics/nflx_prediction.png)
+![Netflix prediction](/pics/nflx_prediction.png)
 
 ### Conclusions
 
