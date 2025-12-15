@@ -18,7 +18,9 @@ Alkuperäinen Transformer-malli [1] kehitettiin konekäännöksiä varten. Malli
 
 Kuvassa 1 esitetään alkuperäisen Transformer-arkkitehtuurin rakenne. Kielen kääntämisessä merkkijonot pilkotaan ensin pienempiin yksiköihin, kuten sanoihin, alisanoihin tai merkkeihin (tokenisointi). Nämä tokenit muutetaan vektorimuotoisiksi esityksiksi, joita kutsutaan sanaupotuksiksi (engl. *word embeddings*). Sanaupotuksiin lisätään paikkakoodaus (engl. *positional encoding*), minkä jälkeen ne syötetään kooderiin, joka tuottaa tokeneille kontekstuaaliset esitykset. Toisin sanoen nämä esitykset sisältävät tietoa sanojen merkityksistä ja suhteista toisiinsa huomioiden samalla kontekstin, jossa sanat esiintyvät. Dekooderi puolestaan käyttää näitä esityksiä sekä aiemmin tuotettuja sanoja tuottaakseen ulostulon yksi sana kerrallaan. Malli laskee kullekin sanalle todennäköisyydet koko sanaston osalta ja valitsee seuraavan sanan todennäköisimpien vaihtoehtojen joukosta.
 
-![Kuva 1. Alkuperäinen Transformer-arkkitehtuuri, joka sisältää kooderin ja dekooderin (muokattu lähteestä Vaswani, 2017 [1]).](/pics/transformer_malli.png)
+![Kuva 1. Alkuperäinen Transformer-arkkitehtuuri, joka sisältää kooderin ja dekooderin.](/pics/transformer_malli.png)
+
+*Kuva 1. Alkuperäinen Transformer-arkkitehtuuri, joka sisältää kooderin ja dekooderin (muokattu lähteestä Vaswani, 2017 [1]).*
 
 Eri sovelluksissa voidaan hyödyntää erilaisia arkkitehtuurin kokoonpanoja, riippuen siitä millaisesta tehtävästä on kyse. Alkuperäinen kooderi-dekooderi-malli soveltuu etenkin sekvenssistä sekvenssiin (engl. *sequence-to-sequence*) tehtäviin, kuten kielen kääntämiseen [1]. Pelkkä kooderi on puolestaan tehokas sekvenssin ymmärtämistehtävissä, kuten luokittelussa ja tunnistuksessa. Vastaavasti pelkkä dekooderi soveltuu sekvenssien luontiin, kuten kielen mallintamiseen. Esimerkiksi hyvin suosittuja GPT-malleja (engl. *Generative Pre-trained Transformer*) käytetään tekstin luomisessa ja ne toimivat pelkästään dekoodereina [4].
 
@@ -42,32 +44,28 @@ Dekooderi hyödyntää peitetyn itsehuomiomekanismin lisäksi erillistä huomiom
 ### Huomiomekanismi
 Huomiomekanismi on transformereiden toiminnan perusta. Alun perin huomiomekanismi esiteltiin RNN-mallien laajennuksena parantamaan niiden suorituskykyä kielenkäännöksessä [3], mutta sen todellinen läpimurto tapahtui vasta Transformer-malleissa. Toisin kuin perinteiset neuroverkot, joissa syötteitä kerrotaan kiinteillä painoilla, transformer käyttää syötteestä riippuvia painokertoimia, jotka mukautuvat dynaamisesti syötteen mukaan [2].
 
-Huomiomekanismissa kaikki syötevektorit järjestetään riveittäin syötematriisiin $\mathbf{X}$, jonka muoto on $n \times d$, missä  
-$n$ on syötteen vektorien määrä (esimerkiksi sanojen lukumäärä tekstissä) ja $d$ on kunkin vektorin dimensio (piirteiden määrä).
+Huomiomekanismissa kaikki syötevektorit järjestetään riveittäin syötematriisiin **X**, jonka koko on *n* × *d*, missä  
+- *n* on syötteen vektorien määrä (esimerkiksi sanojen lukumäärä tekstissä)  
+- *d* on kunkin vektorin dimensio (piirteiden määrä).
 
-Matriisi $\mathbf{X}$ muunnetaan kolmeksi erilliseksi matriisiksi: kyselyiksi $\mathbf{Q}_{n \times d_q}$, avaimiksi $\mathbf{K}_{n \times d_k}$ ja arvoiksi $\mathbf{V}_{n \times d_v}$. Tämä muunnos tapahtuu kertomalla syötematriisi $\mathbf{X}$ kolmella eri painomatriisilla $\mathbf{W}^{(q)}_{d \times d_q}$, $\mathbf{W}^{(k)}_{d \times d_k}$ ja $\mathbf{W}^{(v)}_{d \times d_v}$, jotka ovat mallin koulutuksen aikana oppimia parametreja.
+Matriisi X muunnetaan kolmeksi erilliseksi matriisiksi:  
+- kyselyt **Q** (koko *n* × *dq*)  
+- avaimet **K** (koko *n* × *dk*)  
+- arvot **V** (koko *n* × *dv*)  
 
-On tärkeää huomata, että matriisien dimensioiden tulee olla yhteensopivia, jotta kertolaskut voidaan suorittaa. Yhtälöinä nämä voidaan esittää seuraavasti:
+Tämä tapahtuu kertomalla syötematriisi **X** kolmella eri painomatriisilla **Wq**, **Wk** ja **Wv**, jotka ovat mallin koulutuksen aikana opittuja parametreja. On tärkeää, että matriisien koot ovat yhteensopivia kertolaskua varten.
 
-$$
-\mathbf{Q} = \mathbf{X}\mathbf{W}^{(q)}
-$$
+Tämän muunnoksen jälkeen jokainen syötteen osa saa oman kysely-, avain- ja arvovektorin.  
+- Kyselyt (**Q**) määrittävät, mitä tietoa malli kulloinkin etsii.  
+- Avaimet (**K**) koodaavat syötteen osien keskeiset ominaisuudet, joita kyselyt käyttävät vertailukohtana.  
+- Arvot (**V**) sisältävät tiedon, joka lopulta yhdistyy mallin lopulliseen tulokseen.  
 
-$$
-\mathbf{K} = \mathbf{X}\mathbf{W}^{(k)}
-$$
-
-$$
-\mathbf{V} = \mathbf{X}\mathbf{W}^{(v)}
-$$
-
-Näiden laskutoimitusten tuloksena muodostuvat matriisit $\mathbf{Q}$, $\mathbf{K}$ ja $\mathbf{V}$, jotka sisältävät jokaiselle syötteen osalle vastaavat kysely-, avain- ja arvovektorit. Kyselyt ($\mathbf{Q}$) määrittävät, mitä tietoa malli kulloinkin etsii, kun taas avaimet ($\mathbf{K}$) koodaavat syötteen osien keskeiset ominaisuudet, joita kyselyt käyttävät vertailukohtana.
-Arvot ($\mathbf{V}$) puolestaan sisältävät sen tiedon, joka lopulta yhdistyy mallin lopulliseen tulokseen. Tämä rakenne mahdollistaa sen, että malli pystyy joustavasti painottamaan eri syöteosien merkitystä.
+Tämä rakenne mahdollistaa sen, että malli voi joustavasti painottaa eri syöteosien merkitystä.
 
 Syöteosien välisten riippuvuuksien laskeminen tapahtuu kysely- ja avainvektorien pistetulon avulla, joka mittaa vektorien samankaltaisuutta. Pistetulon suuruus ilmaisee, kuinka vahva yhteys kahden syöteosan välillä on. 
 Jokaisen syöteosan kyselyvektori kerrotaan kaikkien muiden syöteosien avainvektoreiden kanssa, jolloin saadaan huomioarvot, jotka kuvaavat kunkin syöteosan merkitystä suhteessa muihin syöteosiin. 
 
-Jotta pistetulojen arvot pysyisivät hallinnassa erityisesti silloin, kun vektoreiden ulottuvuus $d$ on suuri, ne skaalataan jakamalla vektoreiden ulottuvuuden neliöjuurella. Ilman skaalausta pistetulojen arvot voivat kasvaa niin suuriksi, että mallin herkkyys kärsii ja mallista tulee vaikea kouluttaa [8].
+Jotta pistetulojen arvot pysyisivät hallinnassa erityisesti silloin, kun vektoreiden ulottuvuus *d* on suuri, ne skaalataan jakamalla vektoreiden ulottuvuuden neliöjuurella. Ilman skaalausta pistetulojen arvot voivat kasvaa niin suuriksi, että mallin herkkyys kärsii ja mallista tulee vaikea kouluttaa [8].
 Skaalauksen jälkeen pistetuloille suoritetaan normalisointi softmax-funktion avulla, joka suhteuttaa ne välille 0 – 1.
 Nämä huomioarvot ilmaisevat, kuinka paljon painoarvoa kullekin syöteosalle annetaan.
 
@@ -75,22 +73,24 @@ Lopuksi huomioarvot kerrotaan vielä arvovektoreilla, jolloin jokaisen syöteosa
 
 Skaalatun pistetulohuomion laskeminen voidaan esittää yhtälöllä [1]:
 
-$$
-\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}\left(\frac{\mathbf{Q}\mathbf{K}^\top}{\sqrt{d_k}}\right)\mathbf{V}
-$$
+<img src="/pics/attention.png" alt="Attention">
 
 Koska syötevektorit kootaan matriisimuotoon, huomion laskeminen voidaan suorittaa rinnakkain. Laskennassa voidaan hyödyntää grafiikkaprosessoreita ja kaikki syöteosat voidaan käsitellä samanaikaisesti. Tämä parantaa merkittävästi laskennan nopeutta ja mahdollistaa suurempien datamäärien käsittelyn.
 
-Kuva 2 havainnollistaa skaalatun pistetulohuomion laskentaa. Tämä rakenne muodostaa yksittäisen huomiopään monipäisessä huomiomekanismissa.
+Kuva 3 havainnollistaa skaalatun pistetulohuomion laskentaa. Tämä rakenne muodostaa yksittäisen huomiopään monipäisessä huomiomekanismissa.
 
-![Kuva 2. Skaalatun pistetulohuomion laskeminen (muokattu lähteestä Bishop, 2024 [2])](/pics/huomio.png)
+<img src="/pics/huomio.png" alt="Kuva 3. Skaalatun pistetulohuomion laskeminen" width="50%">
+
+*Kuva 3. Skaalatun pistetulohuomion laskeminen (muokattu lähteestä Bishop, 2024 [2]).*
 
 ### Monipäinen huomio
 Transformerit käyttävät usein monipäistä huomiomekanismia, vaikka periaatteessa yksi huomiokerros voisi riittää. Jos käytössä on vain yksi huomiokerros, se voi tunnistaa tietyn riippuvuuden syötteen osien välillä, mutta saattaa sivuuttaa muita tärkeitä suhteita. 
 
-Monipäisessä huomiossa huomiomekanismeja lisätään rinnakkain, mikä mahdollistaa useiden eri näkökulmien samanaikaisen tutkimisen. Monipäisen huomiomekanismin rakenne on esitetty alla olevassa kuvassa 3. Koska eri huomiopäät (engl. *attention heads*) käyttävät omia painomatriisejaan $\mathbf{Q}$-, $\mathbf{K}$- ja $\mathbf{V}$-matriisien laskemiseen, jokainen pää pystyy käsittelemään erityyppisiä riippuvuuksia syötteen osien välillä. Lopullinen huomioarvo muodostetaan yhdistämällä kaikkien päiden antamat tulokset. Näin malli pystyy ymmärtämään syvällisemmin syötettä ja kykenee monimutkaisempiin tehtäviin.
+Monipäisessä huomiossa huomiomekanismeja lisätään rinnakkain, mikä mahdollistaa useiden eri näkökulmien samanaikaisen tutkimisen. Monipäisen huomiomekanismin rakenne on esitetty alla olevassa kuvassa 4. Koska eri huomiopäät (engl. *attention heads*) käyttävät omia painomatriisejaan **Q**-, **K**- ja **V**-matriisien laskemiseen, jokainen pää pystyy käsittelemään erityyppisiä riippuvuuksia syötteen osien välillä. Lopullinen huomioarvo muodostetaan yhdistämällä kaikkien päiden antamat tulokset. Näin malli pystyy ymmärtämään syvällisemmin syötettä ja kykenee monimutkaisempiin tehtäviin.
 
-![Kuva 3. Monipäinen huomio koostuu useasta rinnakkaisesta huomiokerroksesta (muokattu lähteestä Vaswani, 2017 [1])](/pics/monipainen.png)
+![Kuva 4. Monipäinen huomio koostuu useasta rinnakkaisesta huomiokerroksesta](/pics/monipainen.png)
+
+*Kuva 4. Monipäinen huomio koostuu useasta rinnakkaisesta huomiokerroksesta (muokattu lähteestä Vaswani, 2017 [1]).*
 
 ### Eteenpäin syöttävä neuroverkko
 Monipäisen huomiomekanismin jälkeen Transformer-arkkitehtuurissa on tavallinen eteenpäin syöttävä neuroverkko (FFNN). Verkko käsittelee jokaisen syötevektorin lisäten syötteeseen epälineaarisia muunnoksia. Huomiomekanismin tuottamaa informaatiota siis jatkojalostetaan ennen sen siirtämistä seuraavaan kerrokseen. Tämä prosessi parantaa mallin kykyä oppia monimutkaisempia riippuvuuksia syötteiden välillä [2].
@@ -100,16 +100,12 @@ Eteenpäin syöttävä neuroverkko koostuu tyypillisesti kahdesta täysin liitet
 ### Paikkakoodaus
 Syötteen osien järjestys on oleellinen tieto useimmissa peräkkäisiä käsittelytehtäviä vaativissa sovelluksissa. Esimerkiksi kielimalleissa lauseen merkitys voi muuttua täysin toiseksi rippuen siitä, missä järjestyksessä sanat esiintyvät. Transformer-mallissa ei kuitenkaan itsessään ole sisäänrakennettua ymmärrystä järjestyksestä. Järjestyksen ja suhteellisten etäisyyksien mallintaminen on ratkaistava lisäämällä erillinen paikkakoodaus syötteeseen [1]. Ilman tätä mekanismia malli ei voisi tunnistaa järjestystä tai suhteita syötteen eri osien välillä, mikä tarkoittaisi, että se tuottaisi saman tuloksen, vaikka osien järjestys vaihtuisi.
 
-Alkuperäisessä Transformer-artikkelissa [1] käytettiin $\sin$- ja $\cos$-funktioita paikkakoodauksena, jolloin jokaiselle syötteen elementille lasketaan
+Alkuperäisessä Transformer-artikkelissa [1] käytettiin *sin*- ja *cos*-funktioita paikkakoodauksena. Jokaiselle syötteen elementille laskettiin paikkakoodaus seuraavasti: 
 
-$$
-\begin{aligned}
-PE_{(pos, 2i)} & = \sin\left(\frac{pos}{10000^{\frac{2i}{d_{model}}}}\right),\\
-PE_{(pos, 2i+1)} & = \cos\left(\frac{pos}{10000^{\frac{2i}{d_{model}}}}\right),
-\end{aligned}
-$$
+- Parillisille indekseille: `PE(pos, 2i) = sin(pos / 10000^(2i / d_model))`  
+- Parittomille indekseille: `PE(pos, 2i+1) = cos(pos / 10000^(2i / d_model))`  
 
-missä $pos$ on elementin sijainti ja $d_{model}$ mallin dimensio. Tällainen paikkakoodaus mahdollistaa syötteen elementtien suhteiden mallintamisen ja toimii eri pituisilla syötteillä.
+missä `pos` on elementin sijainti ja `d_model` mallin dimensio. Tällainen paikkakoodaus mahdollistaa syötteen elementtien suhteiden mallintamisen ja toimii eri pituisilla syötteillä.
 
 Nykyisin suurimmassa osassa kielimalleja käytetään opittuja paikkakoodauksia (engl. *learned positional embeddings*), mutta pitkän kontekstin malleissa, kuten LLaMA, yleistyvät myös kiertävät paikkakoodaukset (engl. *rotary positional embeddings (RoPE)*).
 
