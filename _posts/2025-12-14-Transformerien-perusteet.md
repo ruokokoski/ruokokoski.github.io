@@ -73,13 +73,13 @@ Lopuksi huomioarvot kerrotaan vielä arvovektoreilla, jolloin jokaisen syöteosa
 
 Skaalatun pistetulohuomion laskeminen voidaan esittää yhtälöllä [1]:
 
-<img src="/pics/attention.png" alt="Attention">
+<img src="/pics/attention.png" alt="Attention" width="70%">
 
 Koska syötevektorit kootaan matriisimuotoon, huomion laskeminen voidaan suorittaa rinnakkain. Laskennassa voidaan hyödyntää grafiikkaprosessoreita ja kaikki syöteosat voidaan käsitellä samanaikaisesti. Tämä parantaa merkittävästi laskennan nopeutta ja mahdollistaa suurempien datamäärien käsittelyn.
 
 Kuva 3 havainnollistaa skaalatun pistetulohuomion laskentaa. Tämä rakenne muodostaa yksittäisen huomiopään monipäisessä huomiomekanismissa.
 
-<img src="/pics/huomio.png" alt="Kuva 3. Skaalatun pistetulohuomion laskeminen" width="50%">
+<img src="/pics/huomio.png" alt="Kuva 3. Skaalatun pistetulohuomion laskeminen" width="65%">
 
 *Kuva 3. Skaalatun pistetulohuomion laskeminen (muokattu lähteestä Bishop, 2024 [2]).*
 
