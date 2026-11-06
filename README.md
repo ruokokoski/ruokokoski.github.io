@@ -57,7 +57,9 @@ Open `/research/` and choose **Present fullscreen** to present the current slide
 Use Previous / Next, arrow
 keys, Page Up / Page Down, Home / End, the Jump to menu, or swipe horizontally.
 Keyboard shortcuts apply while focus is inside the presentation; form controls
-retain their usual behavior. **Overview** shows all nine slide thumbnails.
+retain their usual behavior. **Overview** shows compact previews generated from
+the actual slide content, with readable titles below them. Previews follow the
+current theme and selected figures, and refresh whenever the overview opens.
 **Present fullscreen** requests real browser fullscreen for the slide stage itself,
 sized to the entire viewport without a maximum width or fixed aspect ratio.
 If the browser blocks fullscreen, a message offers a link to open the presentation
@@ -76,6 +78,9 @@ The stage has one persistent footer shared by all slides. In fullscreen it has
 a reserved row outside the changing slide; only the content above it scrolls.
 Sizing follows the native fullscreen box and typography follows its container
 dimensions, avoiding dynamic viewport sizing during fullscreen transitions.
+During fullscreen, the stage is temporarily mounted directly under the document
+body, outside the site's clipped card. The footer has its own rendering layer.
+On exit or a rejected request, the stage returns to its original position.
 
 Edit `_data/fluxformer_slides.yml` to fill the slides. Keep each slide's `id`
 stable so shared links continue working. Optional fields are:

@@ -80,9 +80,12 @@
           </div>
         </section>
       {% endfor %}
-      <footer class="slide-footer" aria-label="Current date and time in Helsinki">
-        <time data-slide-date></time>
-        <time data-slide-time></time>
+      <footer class="slide-footer" aria-label="Presentation author and current date and time in Helsinki">
+        <span>{{ site.author | escape }} · {{ slides.first.project | escape }}</span>
+        <span class="slide-footer-clock">
+          <time data-slide-date></time>
+          <time data-slide-time></time>
+        </span>
       </footer>
     </div>
 
@@ -92,7 +95,7 @@
         {% for slide in slides %}
           <button type="button" class="overview-card" data-go-to="{{ slide.id }}">
             <span class="overview-number">{{ forloop.index | prepend: '0' }}</span>
-            <span class="overview-miniature" aria-hidden="true"><span></span><span></span></span>
+            <span class="overview-miniature" data-slide-preview aria-hidden="true" inert></span>
             <span class="overview-title">{{ slide.title | escape }}</span>
           </button>
         {% endfor %}

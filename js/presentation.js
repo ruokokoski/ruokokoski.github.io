@@ -8,6 +8,8 @@
   if (!slides.length) return;
 
   var stage = deck.querySelector('[data-presentation-stage]');
+  var stageHome = document.createComment('Presentation stage');
+  stage.before(stageHome);
   var overview = deck.querySelector('[data-presentation-overview]');
   var overviewToggle = deck.querySelector('[data-overview-toggle]');
   var overviewCards = Array.from(deck.querySelectorAll('[data-go-to]'));
@@ -24,6 +26,41 @@
   var overviewOpen = false;
   var expandTrigger = null;
   var exitingPresentation = false;
+
+  function sizeOverviewPreview(preview) {
+    preview.style.setProperty('--preview-scale', preview.getBoundingClientRect().width / 960);
+  }
+
+  var previewObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(function (entries) {
+    entries.forEach(function (entry) { sizeOverviewPreview(entry.target); });
+  }) : null;
+  overviewCards.forEach(function (card) {
+    var preview = card.querySelector('[data-slide-preview]');
+    if (previewObserver) previewObserver.observe(preview);
+  });
+  if (!previewObserver) window.addEventListener('resize', function () {
+    overviewCards.forEach(function (card) { sizeOverviewPreview(card.querySelector('[data-slide-preview]')); });
+  });
+
+  function renderOverviewPreviews() {
+    overviewCards.forEach(function (card) {
+      var slide = slides[indexFor(card.dataset.goTo)];
+      var preview = card.querySelector('[data-slide-preview]');
+      var copy = document.createElement('span');
+      copy.className = 'overview-slide' + (slide.classList.contains('title-slide') ? ' title-slide' : '');
+      copy.appendChild(slide.querySelector('.slide-content').cloneNode(true));
+      copy.appendChild(stage.querySelector('.slide-footer').cloneNode(true));
+      copy.querySelectorAll('button, select, .slide-figure-choice, .slide-details').forEach(function (element) { element.remove(); });
+      // Previews are inert copies; keep IDs, controls and script hooks exclusive to real slides.
+      copy.querySelectorAll('*').forEach(function (element) {
+        Array.from(element.attributes).forEach(function (attribute) {
+          if (/^(id|tabindex|for|aria-.*|data-.*)$/.test(attribute.name)) element.removeAttribute(attribute.name);
+        });
+      });
+      preview.replaceChildren(copy);
+      sizeOverviewPreview(preview);
+    });
+  }
 
   function indexFor(id) {
     return slides.findIndex(function (slide) { return slide.dataset.slide === id; });
@@ -89,6 +126,7 @@
       overviewOpen = true;
       overview.hidden = false;
       stage.hidden = true;
+      renderOverviewPreviews();
       overviewToggle.setAttribute('aria-expanded', 'true');
       overviewToggle.textContent = 'Close overview';
       overviewCards[current].focus();
@@ -107,6 +145,12 @@
     fullscreenToggle.setAttribute('aria-pressed', String(active));
   }
 
+  function restoreStagePosition() {
+    if (stage.parentNode !== stageHome.parentNode) {
+      stageHome.parentNode.insertBefore(stage, stageHome.nextSibling);
+    }
+  }
+
   async function exitPresentation() {
     if (exitingPresentation) return;
     exitingPresentation = true;
@@ -123,10 +167,13 @@
     try {
       if (document.fullscreenElement === stage) await document.exitFullscreen();
       else if (stage.requestFullscreen && document.fullscreenEnabled) {
+        // Keep native fullscreen outside the site's rounded, clipped card.
+        document.body.appendChild(stage);
         await stage.requestFullscreen({ navigationUI: 'hide' });
         if (document.fullscreenElement !== stage) throw new Error('Fullscreen did not activate');
       } else throw new Error('Fullscreen unavailable');
     } catch (error) {
+      if (document.fullscreenElement !== stage) restoreStagePosition();
       fullscreenError.querySelector('a').href = window.location.href;
       fullscreenError.hidden = false;
     }
@@ -138,7 +185,10 @@
       slides[current].scrollTop = 0;
       slides[current].querySelector('.slide-content').scrollTop = 0;
       slides[current].focus({ preventScroll: true });
-    } else fullscreenToggle.focus({ preventScroll: true });
+    } else {
+      restoreStagePosition();
+      fullscreenToggle.focus({ preventScroll: true });
+    }
   });
 
   document.addEventListener('keydown', function (event) {
