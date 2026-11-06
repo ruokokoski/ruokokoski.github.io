@@ -48,22 +48,29 @@ bundle exec jekyll build --strict_front_matter
 - Without JavaScript, the site also defaults to dark.
 - The homepage introduces Teemu and uses a local copy of the photo from
   <https://github.com/ruokokoski>. Replace `pics/teemu-ruokokoski.jpg` to update it.
-- `research.md` contains the FluxFormer presentation, currently an eight-slide outline.
+- `research.md` contains a title page followed by eight slide outlines.
 - `_includes/fluxformer-feature.html` adds the compact homepage project feature.
 
 ## Research presentation
 
-Open `/research/` and choose **Start presentation**. Use Previous / Next, arrow
+Open `/research/` and choose **Present fullscreen** to present the current slide.
+Use Previous / Next, arrow
 keys, Page Up / Page Down, Home / End, the Jump to menu, or swipe horizontally.
 Keyboard shortcuts apply while focus is inside the presentation; form controls
-retain their usual behavior. **Overview** shows all eight slide thumbnails.
-**Present fullscreen** opens native fullscreen where supported, with an expanded
-page view as a fallback. Exit using the same button or Escape.
+retain their usual behavior. **Overview** shows all nine slide thumbnails.
+**Present fullscreen** requests real browser fullscreen for the slide stage itself,
+sized to the entire viewport without a maximum width or fixed aspect ratio.
+If the browser blocks fullscreen, a message offers a link to open the presentation
+in its own tab; a CSS-only expanded page is not substituted. Only the active slide is shown;
+navigation bars and slide tools stay outside it. Navigate with the keyboard or swipes; exit with
+Escape, a double-click, or a double-tap. The usual controls return on exit.
 
 Slides have stable links such as `/research/#slide-architecture`. Browser Back
 and Forward restore slide selection. **More detail** opens supporting text,
 and **Expand visual** opens the selected visual in a dialog. The Results slide
-has selectable visual placeholders. No research content has been added yet.
+has selectable visual placeholders. Only the title page is filled; the remaining
+eight slides are still skeletons. Each slide has a live date and 24-hour `hh:mm`
+clock in its footer, using the `Europe/Helsinki` time zone.
 
 Edit `_data/fluxformer_slides.yml` to fill the slides. Keep each slide's `id`
 stable so shared links continue working. Optional fields are:

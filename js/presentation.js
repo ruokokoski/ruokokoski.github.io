@@ -17,13 +17,13 @@
   var status = deck.querySelector('[data-slide-status]');
   var progress = deck.querySelector('[data-slide-progress]');
   var fullscreenToggle = deck.querySelector('[data-fullscreen-toggle]');
+  var fullscreenError = deck.querySelector('[data-fullscreen-error]');
   var dialog = deck.querySelector('[data-visual-dialog]');
   var expandedVisual = deck.querySelector('[data-expanded-visual]');
   var current = 0;
   var overviewOpen = false;
-  var expanded = false;
-  var backgroundElements = [];
   var expandTrigger = null;
+  var exitingPresentation = false;
 
   function indexFor(id) {
     return slides.findIndex(function (slide) { return slide.dataset.slide === id; });
@@ -71,7 +71,7 @@
 
   function restoreFromURL() {
     var index = indexFromURL();
-    showSlide(index < 0 ? 0 : index, { focus: deck.contains(document.activeElement) });
+    showSlide(index < 0 ? 0 : index, { focus: deck.contains(document.activeElement) || stage.contains(document.activeElement) });
   }
 
   previous.addEventListener('click', function () { navigate(current - 1); });
@@ -94,76 +94,60 @@
     }
   });
 
-  var start = document.querySelector('[data-presentation-start]');
-  if (start) start.addEventListener('click', function (event) {
-    event.preventDefault();
-    navigate(0);
-    deck.scrollIntoView({ block: 'start' });
-  });
-
   window.addEventListener('popstate', restoreFromURL);
   window.addEventListener('hashchange', restoreFromURL);
 
   function updateFullscreenControl() {
-    var active = document.fullscreenElement === deck || expanded;
+    var active = document.fullscreenElement === stage;
+    deck.classList.toggle('is-presenting', active);
+    stage.classList.toggle('is-presenting', active);
+    if (active) closeOverview();
     fullscreenToggle.textContent = active ? 'Exit fullscreen' : 'Present fullscreen';
     fullscreenToggle.setAttribute('aria-pressed', String(active));
   }
 
-  // Expanded mode also works when a browser or embed disallows native fullscreen.
-  function setExpanded(value) {
-    expanded = value;
-    deck.classList.toggle('is-expanded', value);
-    document.body.classList.toggle('presentation-expanded', value);
-    if (value) {
-      var element = deck;
-      while (element.parentElement && element !== document.body) {
-        Array.from(element.parentElement.children).forEach(function (sibling) {
-          if (sibling !== element) {
-            backgroundElements.push({ element: sibling, inert: sibling.inert });
-            sibling.inert = true;
-          }
-        });
-        element = element.parentElement;
-      }
-      deck.focus({ preventScroll: true });
-    } else {
-      backgroundElements.forEach(function (item) { item.element.inert = item.inert; });
-      backgroundElements = [];
-      fullscreenToggle.focus({ preventScroll: true });
+  async function exitPresentation() {
+    if (exitingPresentation) return;
+    exitingPresentation = true;
+    try {
+      if (document.fullscreenElement === stage) await document.exitFullscreen();
+    } finally {
+      exitingPresentation = false;
     }
-    updateFullscreenControl();
   }
 
   fullscreenToggle.addEventListener('click', async function () {
-    if (expanded) {
-      setExpanded(false);
-      return;
-    }
+    fullscreenError.hidden = true;
+    closeOverview();
     try {
-      if (document.fullscreenElement === deck) await document.exitFullscreen();
-      else if (deck.requestFullscreen && document.fullscreenEnabled) await deck.requestFullscreen();
-      else setExpanded(true);
+      if (document.fullscreenElement === stage) await document.exitFullscreen();
+      else if (stage.requestFullscreen && document.fullscreenEnabled) {
+        await stage.requestFullscreen({ navigationUI: 'hide' });
+        if (document.fullscreenElement !== stage) throw new Error('Fullscreen did not activate');
+      } else throw new Error('Fullscreen unavailable');
     } catch (error) {
-      setExpanded(true);
+      fullscreenError.querySelector('a').href = window.location.href;
+      fullscreenError.hidden = false;
     }
   });
   document.addEventListener('fullscreenchange', function () {
     updateFullscreenControl();
-    if (document.fullscreenElement === deck) slides[current].focus({ preventScroll: true });
+    if (document.fullscreenElement === stage) slides[current].focus({ preventScroll: true });
     else fullscreenToggle.focus({ preventScroll: true });
   });
 
-  deck.addEventListener('keydown', function (event) {
+  document.addEventListener('keydown', function (event) {
+    if (!deck.contains(event.target) && !stage.contains(event.target)) return;
     if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
-    if (event.target.closest('input, textarea, select, [contenteditable], summary, a, dialog')) return;
+    if (event.target.closest('dialog')) return;
     if (event.key === 'Escape') {
       if (overviewOpen) {
         closeOverview();
         overviewToggle.focus();
-      } else if (expanded) setExpanded(false);
+      } else if (document.fullscreenElement === stage) exitPresentation();
       return;
     }
+    if (event.target.closest('input, textarea, select, [contenteditable], summary, a')) return;
     if (overviewOpen) return;
     var target;
     if (event.key === 'ArrowRight' || event.key === 'PageDown') target = current + 1;
@@ -177,6 +161,7 @@
   });
 
   var touch = null;
+  var lastTap = null;
   stage.addEventListener('touchstart', function (event) {
     touch = null;
     if (event.touches.length !== 1 || event.target.closest('button, select, summary, a, input, textarea')) return;
@@ -188,10 +173,21 @@
     var dy = event.changedTouches[0].clientY - touch.y;
     if (Date.now() - touch.time < 800 && Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.5) {
       navigate(current + (dx < 0 ? 1 : -1));
+      lastTap = null;
+    } else if (deck.classList.contains('is-presenting') && Date.now() - touch.time < 300 && Math.abs(dx) < 12 && Math.abs(dy) < 12) {
+      if (lastTap && Date.now() - lastTap.time < 350 && Math.abs(touch.x - lastTap.x) < 30 && Math.abs(touch.y - lastTap.y) < 30) {
+        exitPresentation();
+        lastTap = null;
+      } else lastTap = { x: touch.x, y: touch.y, time: Date.now() };
+    } else {
+      lastTap = null;
     }
     touch = null;
   }, { passive: true });
   stage.addEventListener('touchcancel', function () { touch = null; }, { passive: true });
+  stage.addEventListener('dblclick', function (event) {
+    if (deck.classList.contains('is-presenting') && !event.target.closest('a, button, input, textarea, select, [contenteditable]')) exitPresentation();
+  });
 
   slides.forEach(function (slide) {
     var panels = Array.from(slide.querySelectorAll('[data-visual]'));
@@ -205,7 +201,7 @@
       slide.querySelector('[data-figure-control]').hidden = false;
     }
     var expandButton = slide.querySelector('[data-expand-visual]');
-    if (dialog && typeof dialog.showModal === 'function') {
+    if (expandButton && dialog && typeof dialog.showModal === 'function') {
       expandButton.hidden = false;
       expandButton.addEventListener('click', function () {
         var panel = panels.find(function (item) { return !item.hidden; });
@@ -229,5 +225,39 @@
   deck.querySelectorAll('[data-presentation-controls]').forEach(function (control) { control.hidden = false; });
   progress.hidden = false;
   deck.dataset.enhanced = 'true';
+
+  var dateFormat = new Intl.DateTimeFormat('fi-FI', {
+    timeZone: 'Europe/Helsinki', day: '2-digit', month: '2-digit', year: 'numeric'
+  });
+  var timeFormat = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Helsinki', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+  });
+  var dates = Array.from(stage.querySelectorAll('[data-slide-date]'));
+  var times = Array.from(stage.querySelectorAll('[data-slide-time]'));
+  function updateClock() {
+    var now = new Date();
+    var date = dateFormat.format(now);
+    var time = timeFormat.format(now);
+    dates.forEach(function (element) {
+      if (element.textContent !== date) {
+        element.textContent = date;
+        var parts = dateFormat.formatToParts(now);
+        element.dateTime = ['year', 'month', 'day'].map(function (type) {
+          return parts.find(function (part) { return part.type === type; }).value;
+        }).join('-');
+      }
+    });
+    times.forEach(function (element) {
+      if (element.textContent !== time) {
+        element.textContent = time;
+        element.dateTime = time;
+      }
+    });
+  }
+  updateClock();
+  window.setInterval(updateClock, 1000);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) updateClock();
+  });
   restoreFromURL();
 }());
