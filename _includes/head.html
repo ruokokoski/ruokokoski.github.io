@@ -6,7 +6,7 @@
   {% seo %}
   {% feed_meta %}
   <script>{% include theme-init.js %}</script>
-  <link rel="stylesheet" href="{{ '/css/override.css' | relative_url }}">
+  <link rel="stylesheet" href="{{ '/css/override.css' | relative_url }}?v={{ site.time | date: '%s' }}">
   <script defer src="{{ '/js/theme.js' | relative_url }}"></script>
   {% if page.presentation %}
     <link rel="stylesheet" href="{{ '/css/presentation.css' | relative_url }}?v={{ site.time | date: '%s' }}">
