@@ -1,4 +1,8 @@
 title: "Research Notes and Insights"
+url: "https://ruokokoski.github.io"
+baseurl: ""
+repository: "ruokokoski/ruokokoski.github.io"
+lang: "en"
 author: "Teemu Ruokokoski"
 description: "Projects, code, and ideas on AI, modeling, and scientific computing."
 
@@ -24,11 +28,20 @@ rss: rss
 
 kramdown:
   syntax_highlighter_opts:
-    disable: true
+    disable: false
     
 plugins:
   - jekyll-feed
   - jekyll-sitemap
+  - jekyll-seo-tag
+  - jekyll-optional-front-matter
+  - jekyll-titles-from-headings
+
+exclude:
+  - vendor
+  - Gemfile
+  - Gemfile.lock
+  - README.md
 
 titles_from_headings:
   strip_title: true
@@ -37,6 +50,7 @@ titles_from_headings:
 defaults:
   - scope:
       path: ""
-      type: post
+      type: posts
     values:
+      layout: post
       tags: Other

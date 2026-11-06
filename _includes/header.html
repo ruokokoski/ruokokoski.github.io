@@ -1,0 +1,22 @@
+<header class="site-header">
+  <div class="shell header-inner">
+    <a class="site-brand" href="{{ '/' | relative_url }}">
+      <span class="brand-mark" aria-hidden="true">tr.</span>
+      <span>{{ site.author | escape }}</span>
+    </a>
+    <div class="header-controls">
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="{{ '/' | relative_url }}"{% if page.url == '/' %} aria-current="page"{% endif %}>Home</a>
+        <a href="{{ '/research/' | relative_url }}"{% if page.url contains '/research/' %} aria-current="page"{% endif %}>Research</a>
+        <a href="{{ '/archive.html' | relative_url }}"{% if page.url == '/archive.html' or page.layout == 'post' %} aria-current="{% if page.layout == 'post' %}true{% else %}page{% endif %}"{% endif %}>Blog</a>
+      </nav>
+      <div class="theme-control" hidden>
+        <label for="theme-select">Theme</label>
+        <select id="theme-select" aria-label="Color theme">
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</header>

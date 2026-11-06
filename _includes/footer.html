@@ -1,0 +1,13 @@
+<footer class="site-footer">
+  <div class="shell footer-inner">
+    <div>
+      <a class="footer-name" href="{{ '/' | relative_url }}">{{ site.author | escape }}</a>
+      <p>AI, modeling, and scientific computing.</p>
+    </div>
+    <nav aria-label="Contact and feeds">
+      <a href="mailto:{{ site.email | escape }}">Email <span aria-hidden="true">↗</span></a>
+      <a href="https://github.com/{{ site.github_username | escape }}">GitHub <span aria-hidden="true">↗</span></a>
+      <a href="{{ '/feed.xml' | relative_url }}">RSS <span aria-hidden="true">↗</span></a>
+    </nav>
+  </div>
+</footer>

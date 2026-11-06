@@ -1,0 +1,8 @@
+<article class="post-preview">
+  <time datetime="{{ post.date | date_to_xmlschema }}">{{ post.date | date: '%d %b %Y' }}</time>
+  <div>
+    <h3><a href="{{ post.url | relative_url }}">{{ post.title | escape }}</a></h3>
+    <p>{{ post.excerpt | strip_html | normalize_whitespace | truncatewords: 34 | escape }}</p>
+  </div>
+  <span class="preview-arrow" aria-hidden="true">↗</span>
+</article>

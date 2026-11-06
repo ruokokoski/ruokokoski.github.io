@@ -1,0 +1,21 @@
+---
+layout: default
+---
+<section class="home-intro" aria-labelledby="home-title">
+  <header>
+    <p class="eyebrow">PhD student · Machine learning</p>
+    <h1 id="home-title">Research notes.<br><span>Ideas in progress.</span></h1>
+  </header>
+  <div class="home-biography">
+    <figure class="profile-photo">
+      <img src="{{ '/pics/teemu-ruokokoski.jpg' | relative_url }}" width="437" height="437" alt="Teemu Ruokokoski standing outdoors with his arms outstretched">
+      <figcaption>Machine learning · Metabolic modeling</figcaption>
+    </figure>
+    <div class="intro-copy">{{ content }}</div>
+    <div class="home-actions">
+      <a class="text-link" href="{{ '/research/' | relative_url }}">Research <span aria-hidden="true">↗</span></a>
+      <a class="text-link" href="https://github.com/{{ site.github_username | escape }}">GitHub <span aria-hidden="true">↗</span></a>
+      <a class="text-link" href="mailto:{{ site.email | escape }}">Get in touch <span aria-hidden="true">↗</span></a>
+    </div>
+  </div>
+</section>

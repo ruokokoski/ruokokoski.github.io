@@ -1,1 +1,7 @@
-I’m Teemu Ruokokoski, a data science student interested in machine learning, deep learning, and artificial intelligence. This blog is my space to document what I learn and to share practical insights from ongoing research and projects.
+---
+layout: home
+---
+
+I’m Teemu Ruokokoski, a PhD student working on machine learning for metabolic modeling. I’m interested in how models trained on simulations can help us understand biological systems and make predictions from experimental data.
+
+This site brings together my research, projects, and code, alongside notes on machine learning and scientific computing.
