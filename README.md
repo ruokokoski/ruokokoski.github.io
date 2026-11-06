@@ -71,6 +71,11 @@ and **Expand visual** opens the selected visual in a dialog. The Results slide
 has selectable visual placeholders. Only the title page is filled; the remaining
 eight slides are still skeletons. Each slide has a live date and 24-hour `hh:mm`
 clock in its footer, using the `Europe/Helsinki` time zone.
+All slide templates share the same proportional typography and footer size.
+The stage has one persistent footer shared by all slides. In fullscreen it has
+a reserved row outside the changing slide; only the content above it scrolls.
+Sizing follows the native fullscreen box and typography follows its container
+dimensions, avoiding dynamic viewport sizing during fullscreen transitions.
 
 Edit `_data/fluxformer_slides.yml` to fill the slides. Keep each slide's `id`
 stable so shared links continue working. Optional fields are:

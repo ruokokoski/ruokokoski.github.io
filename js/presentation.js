@@ -48,6 +48,7 @@
     closeOverview();
     slides.forEach(function (slide, i) { slide.hidden = i !== current; });
     var slide = slides[current];
+    slide.querySelector('.slide-content').scrollTop = 0;
     var id = slide.dataset.slide;
     deck.dataset.currentSlide = id;
     jump.value = id;
@@ -132,8 +133,12 @@
   });
   document.addEventListener('fullscreenchange', function () {
     updateFullscreenControl();
-    if (document.fullscreenElement === stage) slides[current].focus({ preventScroll: true });
-    else fullscreenToggle.focus({ preventScroll: true });
+    if (document.fullscreenElement === stage) {
+      stage.scrollTop = 0;
+      slides[current].scrollTop = 0;
+      slides[current].querySelector('.slide-content').scrollTop = 0;
+      slides[current].focus({ preventScroll: true });
+    } else fullscreenToggle.focus({ preventScroll: true });
   });
 
   document.addEventListener('keydown', function (event) {

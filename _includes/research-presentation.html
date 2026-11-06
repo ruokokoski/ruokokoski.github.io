@@ -30,6 +30,7 @@
     <div class="presentation-stage" data-presentation-stage>
       {% for slide in slides %}
         <section id="slide-{{ slide.id }}" class="presentation-slide{% if slide.layout == 'title' %} title-slide{% endif %}" data-slide="{{ slide.id }}" role="group" aria-roledescription="slide" aria-label="{{ forloop.index }} of {{ slides.size }}: {{ slide.title | escape }}" tabindex="-1">
+          <div class="slide-content">
           {% if slide.layout == 'title' %}
           <div class="slide-title-content">
             <p class="eyebrow">FluxFormer · Research presentation</p>
@@ -76,12 +77,13 @@
             <div>{% if slide.details %}{{ slide.details | markdownify }}{% else %}<p>Supporting details to be added.</p>{% endif %}</div>
           </details>
           {% endif %}
-          <footer class="slide-footer" aria-label="Current date and time in Helsinki">
-            <time data-slide-date></time>
-            <time data-slide-time></time>
-          </footer>
+          </div>
         </section>
       {% endfor %}
+      <footer class="slide-footer" aria-label="Current date and time in Helsinki">
+        <time data-slide-date></time>
+        <time data-slide-time></time>
+      </footer>
     </div>
 
     <div id="slide-overview" class="presentation-overview" data-presentation-overview hidden>
