@@ -83,6 +83,21 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 2.5rem 0; }
 .profile-photo { float: left; width: 420px; max-width: 45%; margin: 0 3rem 1rem 0; }
 .profile-photo img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; border: 1px solid var(--border); }
 .profile-photo figcaption { margin-top: 1rem; color: var(--muted); font-size: .75rem; }
+.featured-project { display: grid; grid-template-columns: .8fr 1.2fr; gap: 2rem; align-items: center; padding: 2rem; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+.project-copy .eyebrow { margin-bottom: .75rem; }
+.project-copy h2 { font-size: 2.5rem; margin-bottom: 1rem; }
+.project-copy p:not(.eyebrow) { color: var(--muted); font-size: .925rem; line-height: 1.7; }
+.project-copy p.project-subtitle { color: var(--text); font-size: 1.075rem; }
+.project-links { display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; margin-top: 1.5rem; }
+.project-figure { min-width: 0; margin: 0; }
+.growth-panels { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: .75rem; padding: .75rem; background: #fff; border-radius: 6px; overflow-x: auto; }
+.growth-panels > div { min-width: 0; }
+.growth-panels .panel-label { margin: 0 0 .35rem; color: #1d292b; font: 600 .7rem/1.5 var(--sans); text-align: center; }
+.growth-panels a { display: block; }
+.growth-panels img { display: block; width: 100%; height: auto; }
+.project-figure figcaption { margin-top: .75rem; color: var(--muted); font: .75rem/1.6 var(--sans); }
+.prose .project-figure { max-width: 850px; }
+.prose .growth-panels img { margin: 0; border: 0; border-radius: 0; }
 .post-preview { display: grid; grid-template-columns: 120px minmax(0, 1fr) 30px; gap: 1.8rem; padding: 2rem 0; border-top: 1px solid var(--border); }
 .post-preview time { color: var(--muted); font: .75rem/1.7 var(--sans); padding-top: .25rem; }
 .post-preview h3 { font: 500 1.4rem/1.35 var(--sans); letter-spacing: -.025em; margin: 0 0 .65rem; }
@@ -151,6 +166,7 @@ pre code { font-size: inherit; background: none; padding: 0; border: 0; }
   .shell { width: calc(100% - 4rem); }
   .home-intro { padding-block: 4.5rem; }
   .profile-photo { margin-right: 2rem; }
+  .featured-project { grid-template-columns: 1fr; }
   .theme-control label { display: none; }
 }
 @media (max-width: 700px) {
@@ -165,6 +181,9 @@ pre code { font-size: inherit; background: none; padding: 0; border: 0; }
   .home-intro h1 { font-size: clamp(2.65rem, 9.5vw, 4rem); }
   .intro-copy { font-size: 1rem; }
   .profile-photo { float: none; width: min(100%, 437px); max-width: 100%; margin: 0 0 2rem; }
+  .featured-project { grid-template-columns: 1fr; gap: 1.5rem; padding: 1.25rem; }
+  .project-copy h2 { font-size: 2rem; }
+  .growth-panels .panel-label { font-size: .8rem; }
   .post-preview { grid-template-columns: minmax(0, 1fr) 24px; gap: .65rem 1rem; padding-block: 1.5rem; }
   .post-preview time { grid-column: 1 / -1; }
   .post-preview h3 { font-size: 1.25rem; }

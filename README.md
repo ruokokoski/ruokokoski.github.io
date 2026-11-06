@@ -48,7 +48,30 @@ bundle exec jekyll build --strict_front_matter
 - Without JavaScript, the site also defaults to dark.
 - The homepage introduces Teemu and uses a local copy of the photo from
   <https://github.com/ruokokoski>. Replace `pics/teemu-ruokokoski.jpg` to update it.
-- `research.md` is the placeholder for papers, results, and research projects.
+- `research.md` introduces FluxFormer and its growth-prediction experiment.
+- `_includes/fluxformer-feature.html` adds the compact homepage project feature.
+
+## FluxFormer figures
+
+`pics/fluxformer/growth-model-a.png` and `growth-model-e.png` are the original
+1673 × 1630 image panels extracted from Figure 4 (page 9) of the sibling
+`metabolic-NN/tmp/fluxformer_0211.pdf`. They retain the original plot labels,
+error bars, colors, and annotations. The website adds the Model A / Model E panel
+headings and caption in HTML. Each plot links to its full-size image.
+
+Source PDF SHA-256:
+`6b349b08652f20cec90957db0a3208c925585d6f09165f375fe319d5da27d505`.
+
+To reproduce the extraction using Poppler:
+
+```sh
+pdfimages -f 9 -l 9 -png ../metabolic-NN/tmp/fluxformer_0211.pdf /tmp/fluxformer-growth
+cp /tmp/fluxformer-growth-000.png pics/fluxformer/growth-model-a.png
+cp /tmp/fluxformer-growth-002.png pics/fluxformer/growth-model-e.png
+```
+
+These are manuscript-draft results. Update the panels and source provenance
+together when the research figures change.
 
 For a new page, use front matter such as:
 
