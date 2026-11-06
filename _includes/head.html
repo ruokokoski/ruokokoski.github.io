@@ -8,6 +8,10 @@
   <script>{% include theme-init.js %}</script>
   <link rel="stylesheet" href="{{ '/css/override.css' | relative_url }}">
   <script defer src="{{ '/js/theme.js' | relative_url }}"></script>
+  {% if page.presentation %}
+    <link rel="stylesheet" href="{{ '/css/presentation.css' | relative_url }}">
+    <script defer src="{{ '/js/presentation.js' | relative_url }}"></script>
+  {% endif %}
   {% if jekyll.environment == 'production' and site.google_analytics %}
     {% include google-analytics.html %}
   {% endif %}

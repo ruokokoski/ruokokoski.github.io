@@ -1,0 +1,23 @@
+- id: goal
+  title: The goal
+- id: motivation
+  title: Why it matters
+- id: metabolism
+  title: Modeling metabolism
+- id: fba
+  title: The existing approach
+- id: pretraining
+  title: Learning from simulations
+- id: architecture
+  title: FluxFormer
+- id: results
+  title: What works?
+  visuals:
+    - id: simulations
+      label: Simulation accuracy
+    - id: growth
+      label: Experimental growth
+    - id: representations
+      label: Reaction representations
+- id: outlook
+  title: What comes next?

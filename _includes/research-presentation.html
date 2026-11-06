@@ -1,0 +1,97 @@
+{% assign slides = site.data.fluxformer_slides %}
+<section id="fluxformer" class="research-project" aria-labelledby="project-title">
+  <header class="presentation-intro">
+    <div>
+      <p class="eyebrow">Research presentation</p>
+      <h2 id="project-title">FluxFormer</h2>
+      <p>{{ slides.size }} slides · Presentation outline</p>
+    </div>
+    <div class="presentation-intro-actions">
+      <a class="presentation-button primary" href="#slide-{{ slides.first.id }}" data-presentation-start>Start presentation <span aria-hidden="true">→</span></a>
+      <a class="text-link" href="https://github.com/ruokokoski/metabolic-NN">Code <span aria-hidden="true">↗</span></a>
+    </div>
+  </header>
+
+  <div class="presentation" data-presentation role="region" aria-roledescription="carousel" aria-label="FluxFormer presentation" tabindex="-1">
+    <div class="presentation-toolbar" data-presentation-controls hidden>
+      <div class="presentation-jump">
+        <label for="presentation-jump">Jump to</label>
+        <select id="presentation-jump" data-slide-jump>
+          {% for slide in slides %}<option value="{{ slide.id }}">{{ forloop.index }}. {{ slide.title | escape }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="presentation-tools">
+        <button type="button" class="presentation-button" data-overview-toggle aria-expanded="false" aria-controls="slide-overview">Overview</button>
+        <button type="button" class="presentation-button" data-fullscreen-toggle aria-pressed="false">Present fullscreen</button>
+      </div>
+    </div>
+
+    <div class="presentation-stage" data-presentation-stage>
+      {% for slide in slides %}
+        <section id="slide-{{ slide.id }}" class="presentation-slide" data-slide="{{ slide.id }}" role="group" aria-roledescription="slide" aria-label="{{ forloop.index }} of {{ slides.size }}: {{ slide.title | escape }}" tabindex="-1">
+          <p class="eyebrow slide-kicker">Slide {{ forloop.index | prepend: '0' }} / {{ slides.size | prepend: '0' }}</p>
+          <div class="slide-layout">
+            <div class="slide-copy">
+              <h3>{{ slide.title | escape }}</h3>
+              {% if slide.content %}
+                <div class="slide-body">{{ slide.content | markdownify }}</div>
+              {% else %}
+                <p class="slide-placeholder-text">Slide content to be added.</p>
+                <div class="placeholder-lines" aria-hidden="true"><span></span><span></span><span></span></div>
+              {% endif %}
+            </div>
+            <div class="slide-media">
+              {% if slide.visuals %}
+                <label class="slide-figure-choice" data-figure-control hidden>Figure
+                  <select data-figure-select aria-label="Choose a figure for {{ slide.title | escape }}">
+                    {% for visual in slide.visuals %}<option value="{{ visual.id }}">{{ visual.label | escape }}</option>{% endfor %}
+                  </select>
+                </label>
+                {% for visual in slide.visuals %}
+                  <div class="slide-visual" data-visual="{{ visual.id }}">
+                    {% include presentation-visual.html visual=visual %}
+                  </div>
+                {% endfor %}
+              {% else %}
+                <div class="slide-visual" data-visual="default">
+                  {% include presentation-visual.html visual=slide %}
+                </div>
+              {% endif %}
+              <button type="button" class="slide-expand" data-expand-visual hidden>Expand visual <span aria-hidden="true">↗</span></button>
+            </div>
+          </div>
+          <details class="slide-details">
+            <summary>More detail</summary>
+            <div>{% if slide.details %}{{ slide.details | markdownify }}{% else %}<p>Supporting details to be added.</p>{% endif %}</div>
+          </details>
+        </section>
+      {% endfor %}
+    </div>
+
+    <div id="slide-overview" class="presentation-overview" data-presentation-overview hidden>
+      <h3>Choose a slide</h3>
+      <div class="overview-grid">
+        {% for slide in slides %}
+          <button type="button" class="overview-card" data-go-to="{{ slide.id }}">
+            <span class="overview-number">{{ forloop.index | prepend: '0' }}</span>
+            <span class="overview-miniature" aria-hidden="true"><span></span><span></span></span>
+            <span class="overview-title">{{ slide.title | escape }}</span>
+          </button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="presentation-navigation" data-presentation-controls hidden>
+      <button type="button" class="presentation-button" data-slide-previous>← Previous</button>
+      <p class="presentation-status" data-slide-status aria-live="polite" aria-atomic="true"></p>
+      <button type="button" class="presentation-button" data-slide-next>Next →</button>
+    </div>
+    <progress class="presentation-progress" data-slide-progress value="1" max="{{ slides.size }}" aria-label="Presentation progress" hidden></progress>
+    <p class="presentation-hint" data-presentation-controls hidden>Use ← / → to navigate · Home / End for first / last slide · Swipe on touchscreens</p>
+
+    <dialog class="visual-dialog" data-visual-dialog aria-labelledby="visual-dialog-title">
+      <header><h3 id="visual-dialog-title">Slide visual</h3><form method="dialog"><button class="presentation-button" type="submit">Close</button></form></header>
+      <div data-expanded-visual></div>
+    </dialog>
+  </div>
+</section>

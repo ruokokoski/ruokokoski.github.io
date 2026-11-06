@@ -1,0 +1,12 @@
+{% if include.visual.image %}
+  <figure class="slide-figure">
+    <img src="{{ include.visual.image | relative_url }}" alt="{{ include.visual.alt | escape }}" loading="lazy">
+    {% if include.visual.caption %}<figcaption>{{ include.visual.caption | escape }}</figcaption>{% endif %}
+  </figure>
+{% else %}
+  <div class="visual-placeholder">
+    <span class="placeholder-frame" aria-hidden="true"></span>
+    <p>{{ include.visual.label | default: 'Visual placeholder' | escape }}</p>
+    <span>Figure or illustration to be added</span>
+  </div>
+{% endif %}
