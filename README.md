@@ -73,8 +73,10 @@ and **Expand visual** opens the selected visual in a dialog. The Results slide
 has selectable visual placeholders. The title page, slide 2, **From waste to
 value**, slide 3, **Microbial metabolism**, slide 4, **Metabolic models**,
 slide 5, **The data problem**, slide 6, **Virtual experiments**, and slide 7,
-**Generating simulated data**, are filled;
-the remaining three slides are still skeletons. Content
+**Generating simulated data**, slide 8, **FluxFormer architecture**, and slide 9,
+**Training across nutrient distributions**, and slide 10,
+**Broad sampling: D and E distributions**, are filled;
+the remaining two slides are still skeletons. Content
 slides share a heading above a text-and-figure layout. Each slide has a live date and 24-hour `hh:mm`
 clock in its footer, using the `Europe/Helsinki` time zone.
 All slide templates share the same proportional typography and footer size.
@@ -194,3 +196,20 @@ Slide 7 is inserted before the existing architecture skeleton, preserving its li
 Fullscreen figures in the standard text-and-figure layout fill the available
 figure column and remaining slide height without a fixed pixel-height cap.
 Their aspect ratios are preserved; mobile retains the stacked layout.
+
+`pics/fluxformer/fluxformer-architecture.png` is cropped directly from the left
+panel of Article Figure 2 on PDF page 5 of `pics/fluxformer/fluxformer_0911.pdf`.
+Poppler renders the page at 3600 pixels on its longest edge; the crop rectangle
+is `(240, 290, 800, 1180)`. It retains the complete architecture from Inputs to
+Output X / Output c, excluding the experimental-task panels and article caption.
+
+`pics/fluxformer/nutrient-distributions.png` is cropped directly from Article
+Figure 3 on PDF page 7 of `pics/fluxformer/fluxformer_0911.pdf`. The page is
+rendered at 3600 pixels on its longest edge; the crop is `(930, 300, 920, 650)`.
+The condition spaces, model/data legend and model-set label are retained; the
+article caption is excluded. Slide 9 precedes the existing results skeleton.
+
+`pics/fluxformer/broad-de-distributions.png` is cropped from the supplied
+`pics/fluxformer/broad_DE.png`, using `(0, 146, 1672, 795)`. The crop removes
+the image title and blue separator while preserving the three panels and all
+their content. Slide 10 uses this copy; the original image is unchanged.

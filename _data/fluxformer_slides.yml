@@ -74,7 +74,41 @@
   notes: |
     Each virtual experiment starts by selecting which nutrients are available and assigning their uptake limits. We then solve the metabolic model using pFBA, which selects a parsimonious solution among flux distributions that achieve the specified biomass optimum. The resulting input constraints and complete flux distribution form one training example. By repeating this process, we can generate very large datasets.
 - id: architecture
-  title: FluxFormer
+  title: FluxFormer architecture
+  content: |
+    - One token per metabolic reaction.
+    - Self-attention learns relationships between reactions.
+    - Predicts the complete flux distribution.
+  image: /pics/fluxformer/fluxformer-architecture.png
+  alt: A FluxFormer layer updates reaction embeddings X and scalar values c together. Multi-head self-attention updates embeddings, its attention weights propagate scalar values through matrix multiplication, and the concatenated representations pass through a feed-forward block with residual connections.
+  notes: |
+    FluxFormer is a Transformer architecture designed for metabolic flux prediction. Each reaction has its own learned embedding and a scalar value that carries flux information. Self-attention allows information to propagate between reactions, while the model updates the embeddings and scalar values together. This enables FluxFormer to predict the entire flux distribution without solving a separate optimization problem.
+- id: nutrient-distributions
+  title: Training across nutrient distributions
+  content: |
+    - Train separate FluxFormer models on six simulated nutrient distributions.
+    - A, B: Task-specific conditions.
+    - A ∪ B, C: Combined and intermediate conditions.
+    - D, E: Broader nutrient conditions.
+  image: /pics/fluxformer/nutrient-distributions.png
+  alt: Conceptual condition spaces show task-specific distributions A and B surrounding the AMN and MINN datasets, distribution C including intermediate conditions, and broader distributions D and E enclosing both. A legend distinguishes model distributions from experimental data, and the model set includes A, B, A union B, C, D, and E.
+  notes: |
+    We train FluxFormer to predict the complete pFBA flux distribution from simulated nutrient constraints. The main question is how the choice of training conditions affects its performance and ability to transfer to experimental tasks.
+
+    We compare six pretraining distributions using the same FluxFormer architecture. A and B represent two different experimental settings. A union B combines these settings, while C introduces intermediate conditions. D and E extend training to a much broader range of nutrients, which I will explain next.
+
+    The goal is to understand whether a broadly pretrained surrogate can be reused across different applications without requiring task-specific pretraining.
+- id: broad-sampling
+  title: "Broad sampling: D and E distributions"
+  content: |
+    - 48 organic sources selected using metabolic screening and literature.
+    - D: 80% broad, 20% task-specific.
+    - E: 100% broad.
+    - 1–10 sources per medium; oxygen varied separately.
+  image: /pics/fluxformer/broad-de-distributions.png
+  alt: Three panels show a pool of 48 organic sources selected by metabolic screening and literature, the D mixture of 80 percent broad and 10 percent each A-style and B-style samples versus E with 100 percent broad samples, and media containing one to ten sources with oxygen varied separately and smaller mixtures sampled more often.
+  notes: |
+    For D and E, we first screened the metabolic model for organic compounds that could support simulated growth. We then used an LLM-assisted literature review to select sources relevant to industrial and agricultural side streams. The final pool contains 48 compounds. We sample mixtures containing one to ten sources. Model D also includes some conditions from the earlier task-specific distributions, while E is trained entirely on the broad distribution.
 - id: results
   title: What works?
   visuals:
