@@ -29,7 +29,7 @@
 
     <div class="presentation-stage" data-presentation-stage>
       {% for slide in slides %}
-        <section id="slide-{{ slide.id }}" class="presentation-slide{% if slide.layout == 'title' %} title-slide{% elsif slide.layout == 'wide' %} wide-slide{% elsif slide.layout == 'stats' %} stats-slide{% elsif slide.layout == 'figure' %} figure-slide{% else %} split-slide{% endif %}" data-slide="{{ slide.id }}" role="group" aria-roledescription="slide" aria-label="{{ forloop.index }} of {{ slides.size }}: {{ slide.title | escape }}" tabindex="-1">
+        <section id="slide-{{ slide.id }}" class="presentation-slide{% if slide.layout == 'title' %} title-slide{% elsif slide.layout == 'wide' %} wide-slide{% elsif slide.layout == 'stats' %} stats-slide{% elsif slide.layout == 'figure' %} figure-slide{% elsif slide.layout == 'table' %} table-slide{% else %} split-slide{% endif %}" data-slide="{{ slide.id }}" role="group" aria-roledescription="slide" aria-label="{{ forloop.index }} of {{ slides.size }}: {{ slide.title | escape }}" tabindex="-1">
           <div class="slide-content">
           {% if slide.layout == 'title' %}
           <div class="slide-title-content">
@@ -56,7 +56,9 @@
             </div>
             {% endunless %}
             <div class="slide-media">
-              {% if slide.stats %}
+              {% if slide.table %}
+                {% include presentation-table.html table=slide.table %}
+              {% elsif slide.stats %}
                 <div class="slide-stats" aria-label="Experimental datasets">
                   {% for stat in slide.stats %}
                   <div class="slide-stat">
@@ -82,7 +84,17 @@
                   {% include presentation-visual.html visual=slide %}
                 </div>
               {% endif %}
-              {% unless slide.stats %}<button type="button" class="slide-expand" data-expand-visual hidden>Expand visual <span aria-hidden="true">↗</span></button>{% endunless %}
+              {% if slide.comparison %}
+              <div class="slide-comparison" aria-label="Baseline growth-prediction performance">
+                {% for baseline in slide.comparison %}
+                <div class="slide-comparison-item">
+                  <span>{{ baseline.label | escape }}</span>
+                  <span class="slide-comparison-score"><i>R</i><sup>2</sup> {{ baseline.score | escape }}</span>
+                </div>
+                {% endfor %}
+              </div>
+              {% endif %}
+              {% unless slide.stats or slide.table %}<button type="button" class="slide-expand" data-expand-visual hidden>Expand visual <span aria-hidden="true">↗</span></button>{% endunless %}
             </div>
           </div>
           {% if slide.details or slide.content == nil and slide.layout != 'figure' %}

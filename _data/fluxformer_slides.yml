@@ -109,14 +109,89 @@
   alt: Three panels show a pool of 48 organic sources selected by metabolic screening and literature, the D mixture of 80 percent broad and 10 percent each A-style and B-style samples versus E with 100 percent broad samples, and media containing one to ten sources with oxygen varied separately and smaller mixtures sampled more often.
   notes: |
     For D and E, we first screened the metabolic model for organic compounds that could support simulated growth. We then used an LLM-assisted literature review to select sources relevant to industrial and agricultural side streams. The final pool contains 48 compounds. We sample mixtures containing one to ten sources. Model D also includes some conditions from the earlier task-specific distributions, while E is trained entirely on the broad distribution.
+- id: simulated-performance
+  layout: table
+  title: Simulated performance
+  content: |
+    - All six models reproduce pFBA predictions accurately.
+    - Even the broadest model E reaches <i>R</i><sup>2</sup> = 0.9980.
+  table:
+    label: Simulated surrogate fidelity on independent test data from each model's pretraining distribution, pooled across conditions and all 2,712 output fluxes.
+    headers: [Model, R², MAE, RMSE]
+    highlight: E
+    rows:
+      - model: A
+        values: ["0.9997", "0.0032", "0.0283"]
+      - model: B
+        values: ["1.0000", "0.0020", "0.0090"]
+      - model: A ∪ B
+        values: ["0.9998", "0.0040", "0.0186"]
+      - model: C
+        values: ["0.9998", "0.0037", "0.0207"]
+      - model: D
+        values: ["0.9993", "0.0033", "0.0246"]
+      - model: E
+        values: ["0.9980", "0.0064", "0.0614"]
+  notes: |
+    We first tested how well each pretrained FluxFormer reproduces pFBA on independently generated simulated conditions. All models achieved very high accuracy across the 2,712 predicted fluxes. Model E has slightly larger errors, which is expected given its much broader nutrient space. These tests use the corresponding pretraining distribution for each model, so they primarily measure how well each model has learned its own simulation task.
+- id: experimental-transfer
+  title: Transfer to experiments
+  content: |
+    - Freeze pretrained FluxFormer.
+    - Train a small MLP using experimental data.
+    - Predict growth or infer missing exchange constraints.
+  image: /pics/fluxformer/experimental-transfer.png
+  alt: Panels A and B show experimental transfer pipelines. An MLP maps medium composition or omics data to exchange constraints supplied to pretrained FluxFormer, producing predicted steady-state fluxes for growth prediction or missing-flux prediction.
+  notes: |
+    The next question is whether the simulated pretraining is useful for real experimental tasks. We use a two-stage approach. FluxFormer is pretrained and then frozen. A small neural network is trained using experimental data to estimate the exchange constraints that FluxFormer needs. We evaluate this approach on two different tasks: growth prediction and missing-flux prediction.
+- id: growth-prediction
+  title: Predicting growth
+  content: |
+    - 110 experimental E. coli nutrient conditions.
+    - 1–4 variable carbon sources per condition, with a fixed basal medium.
+    - Goal: predict microbial growth rate.
+  image: /pics/fluxformer/growth-prediction-pipeline.png
+  alt: Panel A shows the growth-prediction pipeline. Binary medium composition enters an MLP, which predicts exchange constraints for pretrained FluxFormer. Predicted steady-state fluxes include the biomass flux used to predict growth.
+  notes: |
+    The first experimental task comes from the Artificial Metabolic Network study by Faure and colleagues. It contains 110 nutrient conditions, each with one to four carbon sources selected from a set of ten. The input to our model is a binary vector indicating which of the ten variable carbon sources are present. An MLP maps this information to uptake constraints for the frozen FluxFormer, which then predicts the growth rate. We evaluate performance using repeated stratified 10-fold cross-validation.
 - id: results
-  title: What works?
-  visuals:
-    - id: simulations
-      label: Simulation accuracy
-    - id: growth
-      label: Experimental growth
-    - id: representations
-      label: Reaction representations
+  title: Growth prediction results
+  content: |
+    - All five applicable FluxFormer models outperform the baselines.
+    - Broad model E: <i>R</i><sup>2</sup> = 0.86.
+    - Task-specific model A: <i>R</i><sup>2</sup> = 0.88.
+  image: /pics/fluxformer/growth-prediction-results.png
+  alt: Article Figure 4 compares predicted and measured growth rates for models A and E, with uncertainty bars, identity lines, and the original repeat-level performance annotations retained in each panel.
+  comparison:
+    - label: Published AMN
+      score: ≈ 0.78
+    - label: TabPFN-3
+      score: = 0.806
+  notes: |
+    All five applicable FluxFormer models perform better than the published AMN models and our TabPFN baseline. The most interesting result is that the broadly pretrained model E performs almost as well as the specialized model A. Models A union B, C, and D also obtain similar results. This suggests that we can train on a much wider range of nutrient conditions without losing much accuracy on a particular experimental task.
+- id: missing-flux
+  layout: table
+  title: Missing flux prediction
+  content: |
+    - 29 experimental omics conditions.
+    - Glucose and oxygen inputs, infer three missing exchange constraints.
+    - pFBA prediction improves: <i>r</i><sup>2</sup> = 0.893 → 0.908.
+  table:
+    label: Missing-flux prediction performance, comparing published iAF1260-based methods with the iML1515 pFBA baseline and Model B plus pFBA. The metric r squared is squared Pearson correlation.
+    headers: [Model, r², MAE, RMSE, NE]
+    wide: true
+    rows:
+      - model: pFBA (iAF1260-based)
+        values: ["0.892 ± 0.127", "0.496 ± 0.353", "0.836 ± 0.625", "0.306 ± 0.367"]
+      - model: MINN-Reservoir + pFBA
+        values: ["0.910 ± 0.091", "0.445 ± 0.261", "0.740 ± 0.421", "0.253 ± 0.159"]
+      - model: pFBA (iML1515)
+        highlight: true
+        values: ["0.893 ± 0.132", "0.495 ± 0.366", "0.832 ± 0.634", "0.309 ± 0.373"]
+      - model: Model B + pFBA (iML1515)
+        highlight: true
+        values: ["0.908 ± 0.111", "0.455 ± 0.322", "0.774 ± 0.546", "0.284 ± 0.312"]
+  notes: |
+    The second task uses experimental measurements of gene expression, protein abundance, and metabolic fluxes. We use FluxFormer model B to infer missing constraints for carbon dioxide, ethanol, and acetate. These additional constraints improve the subsequent pFBA predictions, reaching performance close to the published MINN approach. The dataset is very small, so these results are more sensitive to individual observations. The evaluation also uses FBA-fitted experimental flux targets.
 - id: outlook
   title: What comes next?

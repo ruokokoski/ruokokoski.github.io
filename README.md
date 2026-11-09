@@ -69,14 +69,16 @@ Escape, a double-click, or a double-tap. The usual controls return on exit.
 
 Slides have stable links such as `/research/#slide-architecture`. Browser Back
 and Forward restore slide selection. **More detail** opens supporting text,
-and **Expand visual** opens the selected visual in a dialog. The Results slide
-has selectable visual placeholders. The title page, slide 2, **From waste to
+and **Expand visual** opens the selected visual in a dialog. The title page, slide 2, **From waste to
 value**, slide 3, **Microbial metabolism**, slide 4, **Metabolic models**,
 slide 5, **The data problem**, slide 6, **Virtual experiments**, and slide 7,
 **Generating simulated data**, slide 8, **FluxFormer architecture**, and slide 9,
-**Training across nutrient distributions**, and slide 10,
-**Broad sampling: D and E distributions**, are filled;
-the remaining two slides are still skeletons. Content
+**Training across nutrient distributions**, slide 10,
+**Broad sampling: D and E distributions**, slide 11, **Simulated performance**,
+slide 12, **Transfer to experiments**, slide 13, **Predicting growth**, and
+slide 14, **Growth prediction results**, and slide 15, **Missing flux prediction**,
+are filled;
+the remaining outlook slide is still a skeleton. Content
 slides share a heading above a text-and-figure layout. Each slide has a live date and 24-hour `hh:mm`
 clock in its footer, using the `Europe/Helsinki` time zone.
 All slide templates share the same proportional typography and footer size.
@@ -117,6 +119,17 @@ cards beneath the text. Slide 5 uses two cards for the 110 growth conditions
 and 29 omics conditions, with captions and speaker notes. The compact cards
 occupy 60% of the available width on desktop and stack on narrow screens.
 Use `layout: figure` for a figure-only slide body, without a text placeholder.
+Use `layout: table` with `table.headers` and `table.rows` for a large native
+table below the bullets. Rows contain `model` and quoted `values` so trailing
+zeros are preserved. `table.highlight` selects an optional highlighted model;
+`table.label` provides a screen-reader caption. `table.wide: true` uses the full
+slide width and a slightly smaller font for dense tables. A row's `highlight:
+true` emphasizes it more clearly than the subtle `table.highlight` treatment.
+Narrow screens can scroll the
+table horizontally without moving the page or footer.
+Optional `comparison` entries (`label`, `score`) add compact baseline boxes
+below the figure. The growth results slide uses published AMN and TabPFN-3
+scores; the full five-model growth table remains in the article.
 
 For multiple selectable figures, add `visuals` entries with `id`, `label`, and
 the same optional `image`, `alt`, and `caption` fields. Without JavaScript, all
@@ -213,3 +226,34 @@ article caption is excluded. Slide 9 precedes the existing results skeleton.
 `pics/fluxformer/broad_DE.png`, using `(0, 146, 1672, 795)`. The crop removes
 the image title and blue separator while preserving the three panels and all
 their content. Slide 10 uses this copy; the original image is unchanged.
+
+Slide 11 transcribes Article Table 1 from PDF page 8 of
+`pics/fluxformer/fluxformer_0911.pdf` into an HTML table. All six models and
+every R², MAE and RMSE value retain the original four decimal places. The
+speaker notes retain the qualification that each model is tested on its own
+pretraining distribution; no source caption is added to the slide.
+
+`pics/fluxformer/experimental-transfer.png` is cropped directly from Article
+Figure 2, panels A and B, on PDF page 5 of `pics/fluxformer/fluxformer_0911.pdf`.
+The page is rendered at 3600 pixels on its longest edge and cropped using
+`(1100, 300, 1430, 1160)`, preserving both experimental pipelines and excluding
+the left architecture panel and article caption. It is shown on slide 12.
+
+`pics/fluxformer/growth-prediction-pipeline.png` is Article Figure 2A only,
+cropped from PDF page 5 rendered at 3600 pixels, using
+`(1100, 300, 1430, 580)`. Panel B is excluded. Slide 13 uses the enlarged panel.
+
+`pics/fluxformer/growth-prediction-results.png` is Article Figure 4 cropped
+from PDF page 9 rendered at 3600 pixels, using `(380, 260, 2040, 890)`.
+Both growth plots retain their axis labels, error bars, identity lines and
+original repeat-level annotations. Slide 14's bullets use A: 0.88 and E: 0.86,
+matching the rounded annotations in the figure. The TabPFN-3 comparison rounds
+the pooled Table 2 value 0.8063 to 0.806; the published AMN comparison is
+approximately 0.78 as reported in the article.
+No source caption is rendered on either slide.
+
+Slide 15 transcribes Article Table 3 from PDF page 9, preserving all four rows,
+all four metrics and every value with its uncertainty term. The two iML1515
+rows are highlighted. The lowercase r² denotes squared Pearson correlation,
+matching the article's metric definition. Speaker notes retain the small-sample
+and FBA-fitted-target qualifications.

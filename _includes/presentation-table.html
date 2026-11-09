@@ -1,0 +1,16 @@
+<div class="slide-table{% if include.table.wide %} slide-table-wide{% endif %}">
+  <table class="slide-metrics">
+    <caption>{{ include.table.label | escape }}</caption>
+    <thead>
+      <tr>{% for header in include.table.headers %}<th scope="col">{{ header | escape }}</th>{% endfor %}</tr>
+    </thead>
+    <tbody>
+      {% for row in include.table.rows %}
+      <tr{% if row.highlight or row.model == include.table.highlight %} class="metric-highlight{% if row.highlight %} metric-highlight-key{% endif %}"{% endif %}>
+        <th scope="row">{{ row.model | escape }}</th>
+        {% for value in row.values %}<td>{{ value | escape }}</td>{% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
