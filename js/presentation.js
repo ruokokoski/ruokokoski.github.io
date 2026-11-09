@@ -48,6 +48,9 @@
       var preview = card.querySelector('[data-slide-preview]');
       var copy = document.createElement('span');
       copy.className = 'overview-slide' + (slide.classList.contains('title-slide') ? ' title-slide' : '');
+      copy.classList.toggle('wide-slide', slide.classList.contains('wide-slide'));
+      copy.classList.toggle('stats-slide', slide.classList.contains('stats-slide'));
+      copy.classList.toggle('figure-slide', slide.classList.contains('figure-slide'));
       copy.appendChild(slide.querySelector('.slide-content').cloneNode(true));
       copy.appendChild(stage.querySelector('.slide-footer').cloneNode(true));
       copy.querySelectorAll('button, select, .slide-figure-choice, .slide-details').forEach(function (element) { element.remove(); });

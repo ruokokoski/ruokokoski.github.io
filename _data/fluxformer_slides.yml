@@ -4,16 +4,75 @@
   author: Teemu Ruokokoski
   affiliation: Doctoral Researcher · University of Helsinki
   project: FoodID
+  collaboration: in collaboration with VTT
+  notes: |
+    My research combines machine learning and metabolic modeling. The idea is to train neural networks using large amounts of simulated metabolic data and then apply them to real experimental problems. I'll explain the biological motivation, how we generate the training data, and what we have achieved with our Transformer-based model, FluxFormer.
 - id: goal
-  title: The goal
+  title: From waste to value
+  content: |
+    - Industrial and agricultural side streams contain valuable nutrients.
+    - Microorganisms can convert them into biomass, proteins, and chemicals.
+    - Goal: efficient and sustainable bioproduction.
+  image: /pics/fluxformer/side-stream-bioproduction.png
+  alt: Nutrients from a side stream feed microorganisms in a bioreactor. The cells convert them into microbial biomass and secreted metabolites.
+  notes: |
+    Many industrial and agricultural processes produce side streams that still contain useful nutrients. Instead of wasting these resources, we could use microorganisms to convert them into valuable products. The challenge is to find suitable microorganisms and cultivation conditions that make this conversion as efficient as possible.
 - id: motivation
-  title: Why it matters
+  title: Microbial metabolism
+  content: |
+    - Microorganisms consume nutrients from their environment.
+    - Biochemical reactions convert nutrients into energy, biomass, and products.
+    - Metabolic flux describes the rate of a reaction.
+  image: /pics/fluxformer/microbial-metabolism.png
+  alt: Nutrients enter a microbial cell and pass through connected metabolic reactions that generate ATP, biomass precursors, and secreted metabolites.
+  notes: |
+    We can think of microorganisms as small chemical factories. Nutrients enter the cell and pass through connected biochemical reactions. These reactions produce energy and the building blocks needed for growth, as well as compounds that can be released from the cell. The rate of each reaction is called its metabolic flux.
 - id: metabolism
-  title: Modeling metabolism
+  layout: wide
+  title: Metabolic models
+  content: |
+    - Genome-scale metabolic models describe cellular reaction networks.
+    - Our E. coli model, iML1515, contains 2,712 reactions.
+    - Flux Balance Analysis (FBA) predicts reaction fluxes.
+  equation: fba
+  image: /pics/fluxformer/metabolic-models-fba.png
+  alt: Five panels connect a reaction network to its stoichiometric matrix, steady-state mass balance, feasible flux space, and optimal flux solution.
+  notes: |
+    We can describe metabolism mathematically using a network of biochemical reactions. Genome-scale metabolic models collect the known reactions of an organism. FBA uses the network's stoichiometry, reaction constraints, and an objective function, usually biomass production, to predict a possible flux distribution. In our current research, we use the E. coli model iML1515.
 - id: fba
-  title: The existing approach
+  layout: stats
+  title: The data problem
+  content: |
+    - Biological experiments are expensive and time-consuming.
+    - Nutrient uptake rates are often unknown.
+    - Experimental datasets are usually small.
+  stats:
+    - value: "110"
+      label: Growth conditions
+      caption: Growth-prediction benchmark
+    - value: "29"
+      label: Omics conditions
+      caption: Missing-flux benchmark
+  notes: |
+    The main difficulty with neural networks in biology is the shortage of experimental training data. For example, our growth-prediction benchmark contains only 110 different media, and the omics dataset contains just 29 conditions. In addition, knowing which nutrients are present does not directly tell us their uptake rates, which FBA requires. We need a way to learn from much more data.
 - id: pretraining
-  title: Learning from simulations
+  layout: figure
+  title: Virtual experiments
+  image: /pics/fluxformer/virtual-experiments-workflow.png
+  alt: Four workflow panels show the FluxFormer model, generation of FBA-simulated training pairs, pretraining on simulated fluxes, and transfer to experimental growth and omics tasks.
+  notes: |
+    Our solution is to use the metabolic model to generate training data. We can simulate many different nutrient conditions and calculate the corresponding flux distributions using FBA. We then train a neural network to reproduce these predictions. Once trained, the neural network can be reused with experimental data, where only a small amount of measured information is available.
+- id: simulated-data
+  layout: wide
+  title: Generating simulated data
+  content: |
+    - Sample nutrient availability and uptake limits.
+    - Calculate fluxes using parsimonious FBA (pFBA).
+    - Store input constraints and complete flux distributions.
+  image: /pics/fluxformer/simulated-data-generation.png
+  alt: Five steps load the metabolic model, sample a growth medium, set uptake bounds, solve the flux optimization problem, and store the input constraints and full flux distribution as a training example. The process repeats for many conditions.
+  notes: |
+    Each virtual experiment starts by selecting which nutrients are available and assigning their uptake limits. We then solve the metabolic model using pFBA, which selects a parsimonious solution among flux distributions that achieve the specified biomass optimum. The resulting input constraints and complete flux distribution form one training example. By repeating this process, we can generate very large datasets.
 - id: architecture
   title: FluxFormer
 - id: results

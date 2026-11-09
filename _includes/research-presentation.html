@@ -29,31 +29,44 @@
 
     <div class="presentation-stage" data-presentation-stage>
       {% for slide in slides %}
-        <section id="slide-{{ slide.id }}" class="presentation-slide{% if slide.layout == 'title' %} title-slide{% endif %}" data-slide="{{ slide.id }}" role="group" aria-roledescription="slide" aria-label="{{ forloop.index }} of {{ slides.size }}: {{ slide.title | escape }}" tabindex="-1">
+        <section id="slide-{{ slide.id }}" class="presentation-slide{% if slide.layout == 'title' %} title-slide{% elsif slide.layout == 'wide' %} wide-slide{% elsif slide.layout == 'stats' %} stats-slide{% elsif slide.layout == 'figure' %} figure-slide{% else %} split-slide{% endif %}" data-slide="{{ slide.id }}" role="group" aria-roledescription="slide" aria-label="{{ forloop.index }} of {{ slides.size }}: {{ slide.title | escape }}" tabindex="-1">
           <div class="slide-content">
           {% if slide.layout == 'title' %}
           <div class="slide-title-content">
             <p class="eyebrow">FluxFormer · Research presentation</p>
             <h3>{{ slide.title | escape }}</h3>
-            <p class="slide-project">Project: <strong>{{ slide.project | escape }}</strong></p>
+            <p class="slide-project">Project: <strong>{{ slide.project | escape }}</strong>{% if slide.collaboration %} <span class="slide-collaboration">({{ slide.collaboration | escape }})</span>{% endif %}</p>
             <div class="slide-title-meta">
               <div><p class="slide-author">{{ slide.author | escape }}</p><p class="slide-affiliation">{{ slide.affiliation | escape }}</p></div>
             </div>
           </div>
           {% else %}
-          <p class="eyebrow slide-kicker">Slide {{ forloop.index | prepend: '0' }} / {{ slides.size | prepend: '0' }}</p>
+          <p class="eyebrow slide-kicker">Slide {% if forloop.index < 10 %}0{% endif %}{{ forloop.index }} / {% if slides.size < 10 %}0{% endif %}{{ slides.size }}</p>
+          <h3 class="slide-heading">{{ slide.title | escape }}</h3>
+          <div class="slide-title-lines" aria-hidden="true"><span></span><span></span><span></span></div>
           <div class="slide-layout">
+            {% unless slide.layout == 'figure' %}
             <div class="slide-copy">
-              <h3>{{ slide.title | escape }}</h3>
               {% if slide.content %}
                 <div class="slide-body">{{ slide.content | markdownify }}</div>
               {% else %}
                 <p class="slide-placeholder-text">Slide content to be added.</p>
-                <div class="placeholder-lines" aria-hidden="true"><span></span><span></span><span></span></div>
               {% endif %}
+              {% if slide.equation == 'fba' %}{% include presentation-equation-fba.html %}{% endif %}
             </div>
+            {% endunless %}
             <div class="slide-media">
-              {% if slide.visuals %}
+              {% if slide.stats %}
+                <div class="slide-stats" aria-label="Experimental datasets">
+                  {% for stat in slide.stats %}
+                  <div class="slide-stat">
+                    <span class="slide-stat-value">{{ stat.value | escape }}</span>
+                    <span class="slide-stat-label">{{ stat.label | escape }}</span>
+                    <span class="slide-stat-caption">{{ stat.caption | escape }}</span>
+                  </div>
+                  {% endfor %}
+                </div>
+              {% elsif slide.visuals %}
                 <label class="slide-figure-choice" data-figure-control hidden>Figure
                   <select data-figure-select aria-label="Choose a figure for {{ slide.title | escape }}">
                     {% for visual in slide.visuals %}<option value="{{ visual.id }}">{{ visual.label | escape }}</option>{% endfor %}
@@ -69,12 +82,20 @@
                   {% include presentation-visual.html visual=slide %}
                 </div>
               {% endif %}
-              <button type="button" class="slide-expand" data-expand-visual hidden>Expand visual <span aria-hidden="true">↗</span></button>
+              {% unless slide.stats %}<button type="button" class="slide-expand" data-expand-visual hidden>Expand visual <span aria-hidden="true">↗</span></button>{% endunless %}
             </div>
           </div>
+          {% if slide.details or slide.content == nil and slide.layout != 'figure' %}
           <details class="slide-details">
             <summary>More detail</summary>
             <div>{% if slide.details %}{{ slide.details | markdownify }}{% else %}<p>Supporting details to be added.</p>{% endif %}</div>
+          </details>
+          {% endif %}
+          {% endif %}
+          {% if slide.notes %}
+          <details class="slide-details">
+            <summary>Speaker notes</summary>
+            <div>{{ slide.notes | markdownify }}</div>
           </details>
           {% endif %}
           </div>
@@ -94,7 +115,7 @@
       <div class="overview-grid">
         {% for slide in slides %}
           <button type="button" class="overview-card" data-go-to="{{ slide.id }}">
-            <span class="overview-number">{{ forloop.index | prepend: '0' }}</span>
+            <span class="overview-number">{% if forloop.index < 10 %}0{% endif %}{{ forloop.index }}</span>
             <span class="overview-miniature" data-slide-preview aria-hidden="true" inert></span>
             <span class="overview-title">{{ slide.title | escape }}</span>
           </button>
