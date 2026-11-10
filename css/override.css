@@ -64,6 +64,7 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 2.5rem 0; }
 .site-brand { display: flex; align-items: center; gap: .85rem; color: var(--text); text-decoration: none; font-size: 1.25rem; font-weight: 650; letter-spacing: -.02em; }
 .brand-mark { display: grid; place-items: center; width: 42px; height: 42px; background: var(--accent); color: var(--background); border-radius: 50%; font: italic 1.55rem/1 var(--serif); }
 .header-controls, .site-nav { display: flex; align-items: center; gap: 1.75rem; }
+.header-controls, .site-nav { flex-wrap: wrap; }
 .site-nav a { color: var(--muted); text-decoration: none; font-size: 1.15rem; padding-block: .4rem; }
 .site-nav a[aria-current], .site-nav a:hover { color: var(--accent); }
 .site-nav a[aria-current] { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: .6rem; }

@@ -51,6 +51,31 @@ bundle exec jekyll build --strict_front_matter
 - `research.md` contains a title page followed by eight slide outlines.
 - `_includes/fluxformer-feature.html` adds the compact homepage project feature.
 
+## FluxFormer walkthrough
+
+`/fluxformer/` follows four recorded E. coli core conditions through token
+initialization, attention, embedding/scalar propagation, the feed-forward
+network, three-layer refinement, and final flux comparisons. Navigation is
+Home → FluxFormer → Research → Blog. The walkthrough uses the site's existing
+dark/light themes and native HTML, CSS, and JavaScript modules.
+
+Only a small overview loads initially. Full 95-reaction layer traces load on
+demand, with two decoded layers cached. Visitors can select conditions,
+reactions, layers, heads, and individual features, and expand numerical details.
+They cannot edit nutrient bounds or run model inference in the browser.
+
+The public `data/fluxformer/` files are lossless presentation copies of the
+verified traces under `_tools/fluxformer_traces/examples/`. To regenerate them:
+
+```sh
+python3 _tools/fluxformer_traces/prepare_web_data.py
+```
+
+See [_tools/fluxformer_traces/WEB.md](_tools/fluxformer_traces/WEB.md) for the
+data contract, testing commands, browser requirements, and payload sizes.
+`fluxformer.html`, `css/fluxformer.css`, and `js/fluxformer*.js` implement the page;
+its assets load only on the FluxFormer page.
+
 ## Research presentation
 
 Open `/research/` and choose **Present fullscreen** to present the current slide.

@@ -7,6 +7,7 @@
     <div class="header-controls">
       <nav class="site-nav" aria-label="Main navigation">
         <a href="{{ '/' | relative_url }}"{% if page.url == '/' %} aria-current="page"{% endif %}>Home</a>
+        <a href="{{ '/fluxformer/' | relative_url }}"{% if page.url contains '/fluxformer/' %} aria-current="page"{% endif %}>FluxFormer</a>
         <a href="{{ '/research/' | relative_url }}"{% if page.url contains '/research/' %} aria-current="page"{% endif %}>Research</a>
         <a href="{{ '/archive.html' | relative_url }}"{% if page.url == '/archive.html' or page.layout == 'post' %} aria-current="{% if page.layout == 'post' %}true{% else %}page{% endif %}"{% endif %}>Blog</a>
       </nav>

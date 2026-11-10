@@ -1,8 +1,10 @@
 # Offline FluxFormer calculation traces
 
-This directory implements the calculation-trace stage only. It does not change
-the website, train a model, or implement browser inference. Jekyll ignores this
-underscore-prefixed tools directory. Nothing here is wired into navigation.
+This directory contains the offline calculation-trace pipeline and a separate
+packager for the website walkthrough. It does not train a model or implement
+browser inference. Jekyll ignores this underscore-prefixed tools directory;
+`prepare_web_data.py` writes the public data under `data/fluxformer/`.
+See [WEB.md](WEB.md) for the frontend data contract and tests.
 
 ## Run
 

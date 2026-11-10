@@ -8,6 +8,10 @@
   <script>{% include theme-init.js %}</script>
   <link rel="stylesheet" href="{{ '/css/override.css' | relative_url }}?v={{ site.time | date: '%s' }}">
   <script defer src="{{ '/js/theme.js' | relative_url }}"></script>
+  {% if page.fluxformer %}
+    <link rel="stylesheet" href="{{ '/css/fluxformer.css' | relative_url }}?v={{ site.time | date: '%s' }}">
+    <script type="module" src="{{ '/js/fluxformer.js' | relative_url }}?v={{ site.time | date: '%s' }}"></script>
+  {% endif %}
   {% if page.presentation %}
     <link rel="stylesheet" href="{{ '/css/presentation.css' | relative_url }}?v={{ site.time | date: '%s' }}">
     <script defer src="{{ '/js/presentation.js' | relative_url }}?v={{ site.time | date: '%s' }}"></script>

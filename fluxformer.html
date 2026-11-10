@@ -1,0 +1,75 @@
+---
+layout: default
+title: FluxFormer
+description: Follow a real nutrient condition through FluxFormer's attention, scalar propagation, and feed-forward calculations.
+permalink: /fluxformer/
+fluxformer: true
+---
+<article class="ff-page" id="fluxformer" data-manifest="{{ '/data/fluxformer/manifest.json' | relative_url }}">
+  <header class="ff-intro">
+    <div>
+      <p class="eyebrow">Inside the model</p>
+      <h1>FluxFormer<span>From nutrients to fluxes.</span></h1>
+      <p>Follow a simulated nutrient environment through FluxFormer trained on the <i>E. coli</i> core metabolic model. It maps 20 exchange constraints to 95 reaction fluxes using three layers, eight attention heads, 128-feature embeddings, and 640-unit feed-forward hidden layers.</p>
+    </div>
+    <div class="ff-model-mark" aria-label="20 inputs, 95 reaction tokens, 3 layers">
+      <div><strong>20</strong><span>nutrient bounds</span></div><span aria-hidden="true">→</span>
+      <div><strong>95</strong><span>reaction tokens</span></div><span aria-hidden="true">→</span>
+      <div><strong>3</strong><span>Transformer layers</span></div>
+    </div>
+  </header>
+
+  <noscript><p class="ff-notice">Enable JavaScript to explore the recorded calculations. FluxFormer initializes learned reaction embeddings and a scalar channel with nutrient bounds, applies attention and a feed-forward network in each of three layers, and reads the final scalar channel as predicted fluxes. The <a href="{{ '/data/fluxformer/manifest.json' | relative_url }}">data manifest</a> links to all four verified conditions.</p></noscript>
+  <p id="ff-status" class="ff-status" role="status" hidden>Loading verified conditions…</p>
+  <button id="ff-retry" class="ff-button" type="button" hidden>Retry loading</button>
+
+  <div id="ff-app" hidden>
+    <div class="ff-condition-bar">
+      <label class="ff-field" for="ff-sample"><span>Example nutrient environment</span><select id="ff-sample" aria-describedby="ff-condition-explanation"></select></label>
+      <p id="ff-condition-note"></p>
+      <span class="ff-trace-badge"><span aria-hidden="true">●</span> Recorded model calculations</span>
+    </div>
+    <p id="ff-condition-explanation" class="ff-condition-explanation">Each simulated condition is a computer-generated nutrient environment, defined by 20 uptake limits. A metabolic simulation calculates target reaction fluxes under those limits. FluxFormer receives the same limits and predicts the fluxes. “Low” and “high simulated growth” refer to the simulation’s resulting growth rate.</p>
+
+    <nav class="ff-architecture" aria-label="Walkthrough steps">
+      <ol>
+        <li><a href="#initialize" data-step="0"><span class="ff-step-number">01</span><span>Initialize<small>Nutrients → tokens</small></span></a></li>
+        <li><a href="#attention" data-step="1"><span class="ff-step-number">02</span><span>Attention<small>Compare embeddings</small></span></a></li>
+        <li><a href="#mix" data-step="2"><span class="ff-step-number">03</span><span>Mix<small>Update X and c</small></span></a></li>
+        <li><a href="#feedforward" data-step="3"><span class="ff-step-number">04</span><span>Feed-forward<small>Join, transform, add</small></span></a></li>
+        <li><a href="#layers" data-step="4"><span class="ff-step-number">05</span><span>Three layers<small>Refine the states</small></span></a></li>
+        <li><a href="#predictions" data-step="5"><span class="ff-step-number">06</span><span>Predictions<small>Compare with simulation</small></span></a></li>
+      </ol>
+    </nav>
+
+    <section class="ff-workbench" aria-labelledby="ff-stage-title">
+      <header class="ff-stage-heading">
+        <p id="ff-step-label" class="eyebrow"></p>
+        <h2 id="ff-stage-title" tabindex="-1"></h2>
+        <p id="ff-stage-description"></p>
+      </header>
+      <div class="ff-context">
+        <label class="ff-field" for="ff-reaction"><span>Inspect reaction</span><select id="ff-reaction"></select></label>
+        <label class="ff-field" for="ff-layer" id="ff-layer-field" hidden><span>Transformer layer</span><select id="ff-layer"><option value="0">Layer 1</option><option value="1">Layer 2</option><option value="2">Layer 3</option></select></label>
+        <label class="ff-field" for="ff-head" id="ff-head-field" hidden><span>Attention head</span><select id="ff-head"><option value="0">Head 1</option><option value="1">Head 2</option><option value="2">Head 3</option><option value="3">Head 4</option><option value="4">Head 5</option><option value="5">Head 6</option><option value="6">Head 7</option><option value="7">Head 8</option></select></label>
+      </div>
+      <div id="ff-stage" class="ff-stage" aria-busy="false"></div>
+      <footer class="ff-stage-footer">
+        <button id="ff-previous" type="button" class="ff-button">← Previous</button>
+        <span id="ff-progress"></span>
+        <button id="ff-next" type="button" class="ff-button ff-button-primary">Next →</button>
+      </footer>
+    </section>
+
+    <details class="ff-about">
+      <summary>About these calculations and the data</summary>
+      <div>
+        <p>The trained <i>E. coli</i> core model uses 95 reaction tokens, 128 embedding features, eight attention heads, and three Transformer layers. Every calculation includes all 95 reactions. The visible reactions are a view of that complete computation.</p>
+        <p>The four conditions were selected for illustration from simulated test data. Targets are simulation outputs, not experimental measurements. FluxFormer approximates the simulator; it does not enforce mass balance or reaction bounds at inference.</p>
+        <p>Traces were checked against the unchanged PyTorch model. All 340 per-sample checks passed at absolute and relative tolerances of 2 × 10<sup>−5</sup>. The historical test-generation seed and exact pFBA settings were not saved with the CSV.</p>
+        <p id="ff-model-source"></p>
+        <p><a href="https://github.com/{{ site.repository }}/blob/main/_tools/fluxformer_traces/VERIFICATION.md">Numerical verification report ↗</a> · <a id="ff-download" href="{{ '/data/fluxformer/manifest.json' | relative_url }}" download>Download this condition’s overview</a> · <a href="{{ '/data/fluxformer/manifest.json' | relative_url }}" download>Full calculation data index</a></p>
+      </div>
+    </details>
+  </div>
+</article>
