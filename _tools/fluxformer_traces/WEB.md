@@ -82,10 +82,19 @@ entries start at zero. Attention's last axis enumerates source reactions;
 its row is the receiving/query token. The five-source chart retains original
 weights rather than renormalizing them. It explicitly describes neural
 information mixing, not biochemical or causal connections.
+Step 2 explains all 95 query–key comparisons (including self-attention), the
+16 features per head (128 ÷ 8), division by √16 = 4, and row-wise softmax
+across all 95 scores. The displayed pair is labeled as one entry in the row;
+the full pass produces eight 95 × 95 attention matrices.
 
 The interface denotes the 95 × 128 embedding matrix by X. Each reaction vector
 is one row, and X[i, j] selects reaction i's feature j using zero-based indices.
 Original trace keys such as `initial_x` remain unchanged.
+The six example tokens preview features 0–7. The selected panel displays all
+128 features, in one row on desktop and two rows on narrow screens. Negative
+features are blue and extend below zero; positive features are red and extend
+above zero. Heights use the vector's maximum absolute feature as their scale.
+Feature tooltips retain the exact index and recorded value.
 
 The scalar path uses learned `softmax(head_scores)` to combine heads. The
 embedding path concatenates heads and applies the output projection. Both add
@@ -154,11 +163,13 @@ support, and disabled JavaScript. Screenshots default to
   complete source-to-published-data checks.
 - All five JavaScript tests pass, covering four samples and three layers,
   numerical explanation consistency, caching, retry, and loader compatibility.
-- All 187 browser assertions pass in Chromium and WebKit, including every
+- All 215 browser assertions pass in Chromium and WebKit, including every
   walkthrough stage at widths 320, 390, 768, 1024, and 1440px, both themes,
   keyboard focus, history, error recovery, and delayed-response protection.
   Selection checks verify that the six examples remain fixed while the
   separate inspection panel follows the chosen reaction and its exact data.
+  Feature checks verify all 128 values and indices, blue/red sign colors in
+  both themes, and that the complete vector fits at every tested width.
 - Normal and `/preview`-prefixed Jekyll builds pass. The prefixed build includes
   trace assets, resolves the prefixed page/manifest/script URLs, and excludes
   the offline tools directory.

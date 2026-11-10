@@ -12,11 +12,11 @@ function start() {
   const state = { sample: 722, reaction: 12, layer: 0, head: 0, source: null, feature: 0, hidden: 0,
     nutrient: 0, channel: "scalar", step: Math.max(0, steps.indexOf(location.hash.slice(1))), search: "", page: 0 };
   let store, meta, overview, layer, revision = 0;
-  const titles = ["Start with a nutrient condition", "Decide which tokens to read", "Use attention to update both channels",
+  const titles = ["Start with a nutrient condition", "Compare one query with all 95 keys", "Use attention to update both channels",
     "Let the two channels interact", "Refine the states across three layers", "Read the final flux predictions"];
   const descriptions = [
     "The 95 reaction vectors form an embedding matrix X with 128 features per row. Each reaction also has a scalar c. Nutrient bounds initialize c at their matching tokens; the other scalars start at zero.",
-    "Attention compares normalized reaction embeddings. For one receiving reaction, each head assigns weights across all 95 source reactions.",
+    "Learned projections turn normalized embeddings into queries Q and keys K. The selected receiving reaction’s query is compared with every token’s key, including its own.",
     "The same attention matrices mix embedding values and scalar values. Each path then adds its input back through a residual connection.",
     "The feed-forward network joins each row of X with its scalar c, transforms them together, and adds a residual. This is where nutrient context can change the reaction embeddings.",
     "The updated X and c become the next layer’s inputs. An early scalar is an intermediate state; only the last layer supplies the final prediction.",
@@ -32,7 +32,12 @@ function start() {
   const detail = (key, title, content) => `<details class="ff-detail" data-key="${key}"><summary>${title}</summary><div class="ff-detail-body">${content}</div></details>`;
   const equation = (text, caption) => `<div class="ff-equation">${text}</div>${caption ? `<p class="ff-caption">${caption}</p>` : ""}`;
   const rowTable = (headers, rows, caption = "") => `<div class="ff-table-wrap"><table>${caption ? `<caption>${caption}</caption>` : ""}<thead><tr>${headers.map(h => `<th scope="col">${h}</th>`).join("")}</tr></thead><tbody>${rows.map(row => `<tr>${row.map((cell, i) => i === 0 ? `<th scope="row">${cell}</th>` : `<td>${cell}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
-  const valuesPreview = (values, count = 8) => `<div class="ff-vector" aria-label="First ${count} of ${values.length} features">${values.slice(0, count).map((value, i) => `<span title="Feature ${i}: ${exact(value)}" style="--level:${Math.max(8, Math.min(100, Math.abs(value) / (Math.max(...values.map(Math.abs)) || 1) * 100))}%" class="${value < 0 ? "negative" : ""}"></span>`).join("")}<b>…</b></div>`;
+  const vectorLegend = '<span class="ff-vector-legend"><span class="negative">− Negative</span><span class="positive">+ Positive</span></span>';
+  const valuesPreview = (values, count = 8) => {
+    const full = count >= values.length;
+    const maximum = Math.max(...values.map(Math.abs)) || 1;
+    return `<div class="ff-vector${full ? " ff-vector-full" : ""}" role="img" aria-label="${full ? "All" : "First"} ${Math.min(count, values.length)}${full ? "" : ` of ${values.length}`} embedding features; blue is negative, red is positive; bar height indicates magnitude">${values.slice(0, count).map((value, i) => `<span class="ff-feature ${value < 0 ? "negative" : value > 0 ? "positive" : "zero"}" data-feature="${i}" data-value="${exact(value)}" title="Feature ${i}: ${exact(value)}" style="--level:${Math.abs(value) / maximum * 50}%"><i aria-hidden="true"></i></span>`).join("")}${full ? "" : "<b>…</b>"}</div>`;
+  };
   const featureField = (id, label, value, maximum) => `<label class="ff-field ff-small-field" for="ff-${id}"><span>${label} (0–${maximum})</span><input id="ff-${id}" type="number" min="0" max="${maximum}" step="1" value="${value}"></label>`;
   const unitNote = () => state.reaction === 12 ? "Growth rate in h⁻¹." : "Reaction flux in mmol gDW⁻¹ h⁻¹; the sign follows the model’s reaction direction.";
 
@@ -68,12 +73,13 @@ function start() {
       <strong class="ff-c">c = ${number(overview.initial_c[index])}</strong></button>`).join("");
     return `<div class="ff-visual-label"><span>Reaction embeddings <b class="ff-x">X</b></span><span>Nutrient context <b class="ff-c">c</b></span></div>
       <div class="ff-token-grid">${tokens}</div>
-      <p class="ff-caption">Six fixed examples of the 95 reaction tokens. Click an example or use “Inspect reaction” to choose any reaction. Its details appear in the selected-reaction panel below.</p>
+      ${vectorLegend}
+      <p class="ff-caption">The first eight features are previewed for six fixed example tokens. Click an example or use “Inspect reaction” to choose any reaction. Its full embedding appears below.</p>
       <section class="ff-inspection" aria-labelledby="ff-inspection-title">
         <p class="ff-inspection-label">Selected reaction · followed through all six steps</p>
         <header><div><h3 id="ff-inspection-title">${escape(name(state.reaction))}</h3><code>${escape(current.reaction_id)}</code></div>
           <div class="ff-initial-scalar"><span>Initial scalar c</span><strong class="ff-c">${number(overview.initial_c[state.reaction])}</strong></div></header>
-        <div class="ff-inspection-embedding">${valuesPreview(meta.initial_x[state.reaction])}<span class="ff-x">Row ${state.reaction} of X · 128 learned features</span></div>
+        <div class="ff-inspection-embedding"><span class="ff-x">Row ${state.reaction} of X · all 128 learned features</span>${vectorLegend}${valuesPreview(meta.initial_x[state.reaction], 128)}<span class="ff-vector-order">Features 0–127, ordered left to right, then top to bottom. Bar height shows magnitude relative to this vector’s largest feature.</span></div>
         <p>${current.input_index === null
         ? `This reaction has no supplied nutrient bound. Its scalar starts at ${number(0)}; its embedding is learned during training.`
         : `The signed bound ${number(overview.initial_c[state.reaction])} is copied into this token’s scalar. A negative bound allows uptake up to that magnitude; it is not the amount actually taken up.`}</p>
@@ -84,7 +90,7 @@ function start() {
       </section>
       ${detail("nutrients", "Inspect a nutrient bound and its matching token", `
         <label class="ff-field" for="ff-nutrient"><span>Nutrient input</span><select id="ff-nutrient">${meta.inputs.map((input, i) => `<option value="${i}"${i === state.nutrient ? " selected" : ""}>${escape(input.exchange_id)}</option>`).join("")}</select></label>
-        ${rowTable(["Recorded quantity", "Value"], [["Signed uptake lower bound", number(overview.constraints[state.nutrient])], ["Initial scalar at token " + nutrient.token_index, number(overview.initial_c[nutrient.token_index])], ["Realized simulated exchange flux", number(overview.targets[nutrient.token_index])]])}
+        ${rowTable(["Recorded quantity", "Value"], [["Signed uptake lower bound", number(overview.constraints[state.nutrient])], ["Initial scalar at token " + nutrient.token_index, number(overview.initial_c[nutrient.token_index])], ["Simulation target flux", number(overview.targets[nutrient.token_index])]])}
         <p>Bound ${escape(nutrient.exchange_id)} maps to <code>${escape(reaction(nutrient.token_index).token)}</code>. The target is the simulator’s resulting flux, which can differ from the bound. Units: mmol gDW⁻¹ h⁻¹.</p>`)}`;
   }
 
@@ -98,23 +104,31 @@ function start() {
     const evidence = softmaxEvidence(logits, j);
     const remaining = 1 - sources.reduce((sum, source) => sum + source.weight, 0);
     const terms = o.query[h][r].map((value, i) => [i, number(value), number(o.key[h][j][i]), number(value * o.key[h][j][i])]);
-    return `<div class="ff-attention-layout"><div>
-      <p class="ff-visual-label">Strongest source weights <span>Head ${h + 1}</span></p>
+    return `<ol class="ff-attention-method" aria-label="How attention is calculated">
+      <li><strong>Compare all 95 keys</strong><p>Compute Q<sub>${r}</sub> · K<sub>0</sub>, …, Q<sub>${r}</sub> · K<sub>94</sub>. Each head uses 16 features: 128 embedding features ÷ 8 heads.</p></li>
+      <li><strong>Scale each score</strong><p>Divide each dot product by √16 = 4 to keep scores from becoming too large and making softmax overly concentrated.</p></li>
+      <li><strong>Normalize the full row</strong><p>Softmax uses all 95 scaled scores together to produce 95 nonnegative attention weights that sum to one.</p></li>
+      </ol><p class="ff-caption">The model repeats this for all 95 queries in each of the eight heads, producing eight 95 × 95 attention matrices. Here we inspect one row of one head.</p>
+      <div class="ff-attention-layout"><div>
+      <p class="ff-visual-label">Five largest weights in this 95-source row <span>Head ${h + 1}</span></p>
       <div class="ff-attention-rows">${sources.map(source => `<button type="button" data-source="${source.index}" class="ff-attention-row${j === source.index ? " is-selected" : ""}" aria-pressed="${j === source.index}"><span>${escape(name(source.index))}</span><span class="ff-weight-track"><i style="width:${source.weight * 100}%"></i></span><strong>${percent(source.weight)}</strong></button>`).join("")}</div>
       <p class="ff-caption">Other 90 sources: ${percent(remaining)} in total. Weights use the full set of 95, without renormalizing this view.</p>
       </div><div class="ff-receiver"><span class="ff-x">Receiving reaction</span><strong>${escape(name(r))}</strong><code>${escape(reaction(r).reaction_id)}</code><p>Each row contributes information <em>to</em> this token.</p></div></div>
-      ${equation(`Q<sub>${r}</sub> · K<sub>${j}</sub> / √16 <span>→</span> ${number(logits[j])} <span>→ softmax →</span> <strong>${percent(o.attention[h][r][j])}</strong>`, `${escape(name(j))} → ${escape(name(r))}: information flow inside the neural model, not a biochemical connection.`)}
+      ${equation(`<span class="ff-pair-score">Q<sub>${r}</sub> · K<sub>${j}</sub> / √16 = ${number(logits[j])}</span><span class="ff-softmax-row">All 95 scaled scores → softmax → weight for source ${j}: <strong>${percent(o.attention[h][r][j])}</strong></span>`, `Selected pair: ${escape(name(j))} → ${escape(name(r))}, one of 95 query–key comparisons for this receiver. These weights describe information flow inside the neural model, not biochemical connections.`)}
       <aside class="ff-insight"><strong>${state.layer === 0 ? "Layer 1 attention is condition-independent" : "Later attention can depend on the condition"}</strong><p>${state.layer === 0
-        ? "Q and K come only from the learned initial embeddings. Changing the condition leaves these weights unchanged; the scalar values propagated through them still change. This was verified across all four samples."
+        ? "Q and K come only from the learned initial embeddings. Changing the condition leaves these weights unchanged; the scalar values propagated through them still change."
         : "The preceding feed-forward block mixed nutrient scalars into embeddings. This layer compares those updated embeddings."}</p></aside>
-      ${detail("attention", "Inspect the query, key, and softmax calculation", `
-        <label class="ff-field" for="ff-source"><span>Source reaction</span><select id="ff-source">${reactionOptions(j)}</select></label>
-        <p>LayerNorm acts on each 128-feature embedding. Learned projections form Q, K, and V; each head uses 16 features. For this pair, sum all 16 Q × K terms and divide by √16 = 4.</p>
+      ${detail("attention", "How is this attention weight calculated?", `
+        <label class="ff-field" for="ff-source"><span>Source reaction (key)</span><select id="ff-source" aria-describedby="ff-source-help">${reactionOptions(j)}</select></label>
+        <p id="ff-source-help">The receiving reaction selected above supplies the query Q; this source reaction supplies the key K. Changing the source selects another comparison to inspect. All 95 sources still participate in the calculation.</p>
+        <p>LayerNorm normalizes each reaction’s 128-feature embedding before learned projections form Q, K, and V. Each projection is split across eight heads, leaving 16 features per head. V carries the information mixed in Step 3.</p>
+        <p>For this selected pair only, sum all 16 query–key products and divide by √16 = 4. The same query is also compared with the other 94 keys. Softmax then normalizes the complete row of 95 scaled scores, including this one.</p>
         ${rowTable(["Receiving embedding (first four features)", "Before LayerNorm", "After LayerNorm"], layer.input_x[r].slice(0, 4).map((value, i) => [i, number(value), number(o.attention_norm[r][i])]))}
         ${rowTable(["Feature", "Query Q", "Source key K", "Q × K"], terms.slice(0, 4))}
         <details class="ff-subdetail"><summary>Remaining 12 dot-product terms</summary>${rowTable(["Feature", "Q", "K", "Q × K"], terms.slice(4))}</details>
         ${equation(`Recorded scaled logit = ${number(logits[j])}`, "The dot product uses all 16 features, not just the four previewed above.")}
         ${rowTable(["Stable softmax over 95 sources", "Value"], [["Subtract largest logit", number(evidence.maximum)], ["exp(selected logit − maximum)", number(evidence.numerator)], ["Sum exp(logit − maximum), all 95", number(evidence.denominator)], ["Recorded attention weight", number(o.attention[h][r][j])]])}
+        <p>Each weight is exp(score − maximum) divided by the sum of those exponentials over all 95 sources. Subtracting the same maximum from every score improves numerical stability without changing the mathematical softmax result.</p>
         <p>The recorded float32 weight is displayed. The explanatory exponential terms use the same formula; values are rounded for readability.</p>`)}`;
   }
 
@@ -205,6 +219,7 @@ function start() {
     $("step-label").textContent = `Step ${state.step + 1} of 6`;
     $("stage-title").textContent = titles[state.step];
     $("stage-description").textContent = descriptions[state.step];
+    $("reaction-label").textContent = state.step === 1 ? "Receiving reaction (query)" : "Inspect reaction";
     $("layer-field").hidden = ![1, 2, 3].includes(state.step);
     $("head-field").hidden = ![1, 2].includes(state.step);
     $("previous").disabled = state.step === 0;

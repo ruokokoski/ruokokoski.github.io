@@ -59,18 +59,30 @@ for (const engine of ["chromium", "webkit"]) {
     const fixedExamples = await page.locator(".ff-token").evaluateAll(tokens => tokens.map(token => token.dataset.reaction));
     await change(page, "reaction", 0);
     check(JSON.stringify(await page.locator(".ff-token").evaluateAll(tokens => tokens.map(token => token.dataset.reaction))) === JSON.stringify(fixedExamples), "choosing another reaction preserves all six fixed examples");
-    check(await page.locator(".ff-inspection code").textContent() === "ACALD", "selected reaction appears in its own panel");
+    check(await page.locator(".ff-inspection > header code").textContent() === "ACALD", "selected reaction appears in its own panel");
     check(await page.locator(".ff-token.is-selected").count() === 0, "unrelated examples are not highlighted");
     await change(page, "reaction", 25);
     check((await values(page.locator(".ff-initial-scalar .ff-number")))[0] === overview722.initial_c[25], "separate panel displays the selected input scalar exactly");
+    const features = await page.locator(".ff-vector-full .ff-feature").evaluateAll(bars => bars.map(bar => ({
+      index: Number(bar.dataset.feature), value: Number(bar.dataset.value),
+      sign: bar.classList.contains("negative") ? -1 : bar.classList.contains("positive") ? 1 : 0,
+      color: getComputedStyle(bar.querySelector("i")).backgroundColor,
+    })));
+    check(features.length === 128 && features.every((feature, i) => feature.index === i && feature.value === meta.initial_x[25][i]), "selected panel displays all 128 exact features in order");
+    check(features.every(feature => feature.sign === Math.sign(feature.value)), "feature sign matches the recorded number");
+    const blue = features.find(feature => feature.sign < 0).color.match(/\d+/g).map(Number);
+    const red = features.find(feature => feature.sign > 0).color.match(/\d+/g).map(Number);
+    check(blue[2] > blue[0] && red[0] > red[2], "negative bars are blue and positive bars are red");
+    check(await page.locator(".ff-token .ff-feature").count() === 48, "six compact tokens retain eight preview features each");
     await page.locator('[data-key="embedding"] > summary').click();
     check((await values(page.locator('[data-key="embedding"] .ff-equation .ff-number')))[0] === meta.initial_x[25][0], "embedding inspector follows the separate selection");
     await page.locator('.ff-token[data-reaction="27"]').click();
     await busy(page);
-    check(await page.locator("#ff-reaction").inputValue() === "27" && await page.locator(".ff-inspection code").textContent() === "EX_glc__D_e", "clicking a fixed example updates the selector and inspection panel");
+    check(await page.locator("#ff-reaction").inputValue() === "27" && await page.locator(".ff-inspection > header code").textContent() === "EX_glc__D_e", "clicking a fixed example updates the selector and inspection panel");
     check(await page.locator('.ff-token[data-reaction="27"]').getAttribute("aria-pressed") === "true", "selected example remains highlighted");
     await change(page, "reaction", 12);
     await page.screenshot({ path: `${screenshots}/${engine}-initial.png`, fullPage: true });
+    await page.locator(".ff-inspection").screenshot({ path: `${screenshots}/${engine}-selected-vector.png` });
 
     await step(page, 1);
     check(await page.locator(".ff-attention-row").count() === 5, "attention shows five sources");
@@ -147,10 +159,18 @@ for (const engine of ["chromium", "webkit"]) {
       for (let stage = 0; stage < 6; stage++) {
         await step(page, stage);
         await fits(page, `${engine}, ${width}px, stage ${stage}`);
+        if (stage === 0) {
+          check(await page.locator(".ff-vector-full .ff-feature").count() === 128, `all 128 features remain visible at ${width}px`);
+          check(await page.locator(".ff-vector-full").evaluate(chart => chart.scrollWidth <= chart.clientWidth), `full feature chart fits at ${width}px`);
+        }
       }
     }
     await page.locator("#theme-select").selectOption("light");
     check(await page.locator("html").getAttribute("data-theme") === "light", "existing light theme applies");
+    await step(page, 0);
+    const lightColors = await page.locator(".ff-vector-full").evaluate(chart => ["negative", "positive"].map(sign => getComputedStyle(chart.querySelector(`.${sign} i`)).backgroundColor.match(/\d+/g).map(Number)));
+    check(lightColors[0][2] > lightColors[0][0] && lightColors[1][0] > lightColors[1][2], "blue/red signs remain distinct in light mode");
+    await page.screenshot({ path: `${screenshots}/${engine}-mobile-vector-light.png`, fullPage: true });
     await step(page, 1);
     await page.screenshot({ path: `${screenshots}/${engine}-mobile-light.png`, fullPage: true });
     await page.setViewportSize({ width: 1440, height: 1000 });
