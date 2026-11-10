@@ -20,13 +20,14 @@
 - id: motivation
   title: Microbial metabolism
   content: |
-    - Microorganisms consume nutrients from their environment.
-    - Biochemical reactions convert nutrients into energy, biomass, and products.
-    - Metabolic flux describes the rate of a reaction.
+    - Microorganisms consume nutrients, such as sugars and oxygen.
+    - Chemical reactions convert nutrients into other substances.
+    - Metabolism provides energy, materials for cell growth, and other useful products.
+    - Metabolic flux describes how fast each reaction proceeds.
   image: /pics/fluxformer/microbial-metabolism.png
   alt: Nutrients enter a microbial cell and pass through connected metabolic reactions that generate ATP, biomass precursors, and secreted metabolites.
   notes: |
-    We can think of microorganisms as small chemical factories. Nutrients enter the cell and pass through connected biochemical reactions. These reactions produce energy and the building blocks needed for growth, as well as compounds that can be released from the cell. The rate of each reaction is called its metabolic flux.
+    We can think of microorganisms as small chemical factories. Nutrients enter the cell and pass through connected biochemical reactions, where substances are converted into other substances. The product of one reaction can become the starting material for another, forming metabolic pathways. These reactions produce energy and the building blocks needed for growth, as well as compounds that can be released from the cell. The rate of each reaction is called its metabolic flux. Together, these fluxes describe how nutrients flow through the cell's metabolic network.
 - id: metabolism
   layout: wide
   title: Metabolic models
@@ -46,6 +47,7 @@
     - Biological experiments are expensive and time-consuming.
     - Nutrient uptake rates are often unknown.
     - Experimental datasets are usually small.
+    - Limited training data makes neural networks prone to overfitting.
   stats:
     - value: "110"
       label: Growth conditions
@@ -54,7 +56,7 @@
       label: Omics conditions
       caption: Missing-flux benchmark
   notes: |
-    The main difficulty with neural networks in biology is the shortage of experimental training data. For example, our growth-prediction benchmark contains only 110 different media, and the omics dataset contains just 29 conditions. In addition, knowing which nutrients are present does not directly tell us their uptake rates, which FBA requires. We need a way to learn from much more data.
+    The main difficulty with neural networks in biology is the shortage of experimental training data. For example, our growth-prediction benchmark contains only 110 different media, and the omics dataset contains just 29 conditions. With so few examples, neural networks can easily overfit and struggle to generalize to new conditions. In addition, knowing which nutrients are present does not directly tell us their uptake rates, which FBA requires. We need a way to learn from much more data.
 - id: pretraining
   layout: figure
   title: Virtual experiments
@@ -193,5 +195,54 @@
         values: ["0.908 ± 0.111", "0.455 ± 0.322", "0.774 ± 0.546", "0.284 ± 0.312"]
   notes: |
     The second task uses experimental measurements of gene expression, protein abundance, and metabolic fluxes. We use FluxFormer model B to infer missing constraints for carbon dioxide, ethanol, and acetate. These additional constraints improve the subsequent pFBA predictions, reaching performance close to the published MINN approach. The dataset is very small, so these results are more sensitive to individual observations. The evaluation also uses FBA-fitted experimental flux targets.
+- id: reaction-embeddings
+  title: Inside FluxFormer
+  content: |
+    - 14 glycolysis-related reactions across 4,000 simulated nutrient conditions.
+    - Each point represents one reaction embedding under one condition.
+    - Rainbow colors indicate nutrient conditions ordered by similarity.
+    - Reactions form distinct clusters, with structured color patterns within them.
+  image: /pics/fluxformer/reaction-embeddings-sampled-media.png
+  alt: Rainbow-colored t-SNE projection of model E's final glycolysis-related reaction embeddings under 4,000 sampled nutrient conditions. Labeled reaction clusters share color patterns corresponding to medium ordering, shown by the Start-to-End color bar.
+  notes: |
+    We wanted to investigate what FluxFormer learns internally. We extracted the 256-dimensional reaction embeddings and projected them into two dimensions using t-SNE. Each point represents one reaction under a particular nutrient condition. The colors show the ordering of nutrient conditions based on similarity in their inputs, so nearby colors generally represent similar conditions.
+
+    We can see that each reaction forms its own cluster. More interestingly, the colors often change gradually within these clusters, suggesting that FluxFormer's internal representations respond systematically to changes in nutrient composition.
 - id: outlook
-  title: What comes next?
+  layout: figure
+  title: Fructose and oxygen sweeps
+  image: /pics/fluxformer/fructose-oxygen-sweeps.png
+  alt: Two controlled-sweep t-SNE plots use identical reaction embedding coordinates. The left plot is colored by fructose uptake bound on the original 0.05 to 2.2 scale; the right plot is colored by oxygen uptake bound on the original 1 to 10 scale. Both retain their reaction labels, axes and color bars.
+  notes: |
+    To investigate this more systematically, we varied fructose and oxygen uptake bounds over a grid of 10,000 combinations while keeping the other inputs fixed. Both plots show the same embeddings and the same t-SNE coordinates. Only the coloring changes. We can see that different reactions respond differently to changes in fructose and oxygen availability. This illustrates how the model's internal representations depend on specific nutrient conditions.
+- id: discussion
+  layout: text
+  title: Discussion
+  content: |
+    - FluxFormer learns accurate approximations of pFBA using the genome-scale metabolic model.
+    - Outperforms AMN and TabPFN in experimental growth prediction.
+    - Improves missing-flux prediction, with performance similar to MINN.
+    - Broad, task-agnostic pretraining nearly matches task-specific models.
+    - Learned reaction representations reflect nutrient conditions.
+    - Biological accuracy depends on the metabolic model and simulation assumptions.
+  notes: |
+    Our results show that a Transformer can learn the behavior of a genome-scale metabolic model and that the learned surrogate can be useful when experimental data are scarce. FluxFormer outperforms the earlier AMN and TabPFN benchmarks in experimental growth prediction. It also improves missing-flux predictions, achieving performance similar to MINN.
+
+    Broad simulated pretraining is particularly promising, as it achieves nearly the same growth-prediction accuracy as task-specific pretraining. The learned reaction representations also show systematic changes with nutrient conditions, suggesting that the model captures structure in metabolic behavior.
+
+    However, FluxFormer learns from pFBA predictions, so its biological accuracy is limited by the metabolic reconstruction, uptake constraints, and assumptions used in the simulations. Predicting real industrial processes will require more realistic training conditions and experimental validation.
+- id: foundation-model
+  layout: text
+  title: Toward a metabolic foundation model
+  content: |
+    - Develop a single FluxFormer for multiple microorganisms.
+    - Map shared reactions and learn organism-specific embeddings.
+    - Expand training using 12 fungal metabolic models and experimental data from VTT.
+    - Use AI agents to refine simulated conditions based on scientific literature.
+    - Identify suitable microorganisms and growth conditions for specific side streams.
+  notes: |
+    Our next goal is to develop a more general FluxFormer that can learn metabolism across different microorganisms, potentially moving toward a foundation model for metabolic prediction. Instead of training a separate model for each organism, we want to train a single model with organism-specific embeddings. This requires mapping equivalent reactions across metabolic models, since many reactions are shared between organisms, while others are organism-specific. We already have 12 fungal metabolic models and some experimental data from VTT that we can use to extend and evaluate this approach.
+
+    We are also developing an AI-agent workflow that automatically searches scientific literature to improve the biological realism of simulated nutrient conditions. For example, if a sampled medium contains a compound known to inhibit a particular metabolic reaction, that information could be used to adjust the simulation constraints.
+
+    Ultimately, we want to use these more general surrogates to identify which microorganisms are best suited to different industrial and agricultural side streams, and under which cultivation conditions they could produce valuable products efficiently.

@@ -52,6 +52,7 @@
       copy.classList.toggle('stats-slide', slide.classList.contains('stats-slide'));
       copy.classList.toggle('figure-slide', slide.classList.contains('figure-slide'));
       copy.classList.toggle('table-slide', slide.classList.contains('table-slide'));
+      copy.classList.toggle('text-slide', slide.classList.contains('text-slide'));
       copy.appendChild(slide.querySelector('.slide-content').cloneNode(true));
       copy.appendChild(stage.querySelector('.slide-footer').cloneNode(true));
       copy.querySelectorAll('button, select, .slide-figure-choice, .slide-details').forEach(function (element) { element.remove(); });

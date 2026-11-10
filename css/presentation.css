@@ -45,6 +45,14 @@
 .slide-body ul { display: grid; gap: .8em; margin: 0; padding-left: 1.2em; }
 .slide-body li::marker { color: var(--accent); }
 .slide-body > :last-child { margin-bottom: 0; }
+@media (min-width: 701px) {
+  #slide-motivation .slide-layout { grid-template-columns: 1fr 1fr; }
+}
+.overview-card[data-go-to="motivation"] .slide-layout { grid-template-columns: 1fr 1fr; }
+#slide-motivation .slide-body,
+.overview-card[data-go-to="motivation"] .slide-body { line-height: 1.4; }
+#slide-motivation .slide-body ul,
+.overview-card[data-go-to="motivation"] .slide-body ul { gap: .4em; }
 .slide-figure-choice { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin-bottom: .75rem; }
 .visual-placeholder { min-height: 275px; padding: 2rem; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px dashed var(--border); border-radius: 10px; background: var(--background); text-align: center; }
 .placeholder-frame { width: 64px; height: 44px; border: 1px solid var(--border); border-radius: 5px; margin-bottom: 1.25rem; box-shadow: 8px -8px 0 -1px var(--background), 8px -8px 0 0 var(--border); }
@@ -171,6 +179,11 @@
 .overview-slide.stats-slide .slide-layout { gap: 1rem; }
 .overview-slide.stats-slide .slide-body ul { gap: .5em; }
 
+.text-slide .slide-layout { display: flex; align-items: center; min-height: 0; }
+.text-slide .slide-copy { width: 100%; }
+.text-slide .slide-body { line-height: 1.45; }
+.text-slide .slide-body ul { gap: .55em; }
+
 .figure-slide .slide-layout { display: block; min-height: 0; }
 .figure-slide .slide-figure img { width: 100%; max-height: none; }
 .presentation-stage:is(:fullscreen, .is-presenting) .figure-slide .slide-layout,
@@ -201,7 +214,6 @@
 .slide-metrics thead { background: var(--accent-soft); color: var(--accent); }
 .slide-metrics tbody tr:last-child > * { border-bottom: 0; }
 .slide-metrics .metric-highlight { background: rgba(142, 210, 188, .07); }
-.slide-metrics .metric-highlight-key { background: var(--accent-soft); }
 .slide-table-wide { width: 100%; font-size: calc(var(--slide-text-size) * .85); }
 .presentation-stage:is(:fullscreen, .is-presenting) .table-slide .slide-layout,
 .overview-slide.table-slide .slide-layout { flex: 1 1 0; }

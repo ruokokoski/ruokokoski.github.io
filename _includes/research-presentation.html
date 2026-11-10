@@ -29,7 +29,7 @@
 
     <div class="presentation-stage" data-presentation-stage>
       {% for slide in slides %}
-        <section id="slide-{{ slide.id }}" class="presentation-slide{% if slide.layout == 'title' %} title-slide{% elsif slide.layout == 'wide' %} wide-slide{% elsif slide.layout == 'stats' %} stats-slide{% elsif slide.layout == 'figure' %} figure-slide{% elsif slide.layout == 'table' %} table-slide{% else %} split-slide{% endif %}" data-slide="{{ slide.id }}" role="group" aria-roledescription="slide" aria-label="{{ forloop.index }} of {{ slides.size }}: {{ slide.title | escape }}" tabindex="-1">
+        <section id="slide-{{ slide.id }}" class="presentation-slide{% if slide.layout == 'title' %} title-slide{% elsif slide.layout == 'wide' %} wide-slide{% elsif slide.layout == 'stats' %} stats-slide{% elsif slide.layout == 'figure' %} figure-slide{% elsif slide.layout == 'table' %} table-slide{% elsif slide.layout == 'text' %} text-slide{% else %} split-slide{% endif %}" data-slide="{{ slide.id }}" role="group" aria-roledescription="slide" aria-label="{{ forloop.index }} of {{ slides.size }}: {{ slide.title | escape }}" tabindex="-1">
           <div class="slide-content">
           {% if slide.layout == 'title' %}
           <div class="slide-title-content">
@@ -55,6 +55,7 @@
               {% if slide.equation == 'fba' %}{% include presentation-equation-fba.html %}{% endif %}
             </div>
             {% endunless %}
+            {% unless slide.layout == 'text' %}
             <div class="slide-media">
               {% if slide.table %}
                 {% include presentation-table.html table=slide.table %}
@@ -96,6 +97,7 @@
               {% endif %}
               {% unless slide.stats or slide.table %}<button type="button" class="slide-expand" data-expand-visual hidden>Expand visual <span aria-hidden="true">↗</span></button>{% endunless %}
             </div>
+            {% endunless %}
           </div>
           {% if slide.details or slide.content == nil and slide.layout != 'figure' %}
           <details class="slide-details">

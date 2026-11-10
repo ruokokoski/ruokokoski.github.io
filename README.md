@@ -76,9 +76,10 @@ slide 5, **The data problem**, slide 6, **Virtual experiments**, and slide 7,
 **Training across nutrient distributions**, slide 10,
 **Broad sampling: D and E distributions**, slide 11, **Simulated performance**,
 slide 12, **Transfer to experiments**, slide 13, **Predicting growth**, and
-slide 14, **Growth prediction results**, and slide 15, **Missing flux prediction**,
-are filled;
-the remaining outlook slide is still a skeleton. Content
+slide 14, **Growth prediction results**, slide 15, **Missing flux prediction**,
+slide 16, **Inside FluxFormer**, slide 17, **Fructose and oxygen sweeps**,
+slide 18, **Discussion**, and slide 19, **Toward a metabolic foundation model**,
+are filled. Content
 slides share a heading above a text-and-figure layout. Each slide has a live date and 24-hour `hh:mm`
 clock in its footer, using the `Europe/Helsinki` time zone.
 All slide templates share the same proportional typography and footer size.
@@ -119,12 +120,13 @@ cards beneath the text. Slide 5 uses two cards for the 110 growth conditions
 and 29 omics conditions, with captions and speaker notes. The compact cards
 occupy 60% of the available width on desktop and stack on narrow screens.
 Use `layout: figure` for a figure-only slide body, without a text placeholder.
+Use `layout: text` for full-width discussion points without a figure or visual placeholder.
 Use `layout: table` with `table.headers` and `table.rows` for a large native
 table below the bullets. Rows contain `model` and quoted `values` so trailing
 zeros are preserved. `table.highlight` selects an optional highlighted model;
 `table.label` provides a screen-reader caption. `table.wide: true` uses the full
 slide width and a slightly smaller font for dense tables. A row's `highlight:
-true` emphasizes it more clearly than the subtle `table.highlight` treatment.
+true` uses the same subtle green as `table.highlight`.
 Narrow screens can scroll the
 table horizontally without moving the page or footer.
 Optional `comparison` entries (`label`, `score`) add compact baseline boxes
@@ -257,3 +259,20 @@ all four metrics and every value with its uncertainty term. The two iML1515
 rows are highlighted. The lowercase r² denotes squared Pearson correlation,
 matching the article's metric definition. Speaker notes retain the small-sample
 and FBA-fitted-target qualifications.
+
+`pics/fluxformer/reaction-embeddings-sampled-media.png` is cropped directly
+from Article Figure 5a on PDF page 10 of `pics/fluxformer/fluxformer_0911.pdf`.
+The page is rendered at 5400 pixels on its longest edge and cropped using
+`(360, 520, 1170, 1250)`. The sampled-media t-SNE panel, reaction labels, axes
+and rainbow medium-ordering color bar are retained; the other panels and
+article caption are excluded. The panel title “(a) Sampled media” is also
+removed, giving the plot more space at the same displayed height. Slide 16 uses all available fullscreen figure
+space in the standard text-left/figure-right layout.
+
+`pics/fluxformer/fructose-oxygen-sweeps.png` contains Article Figure 5b–c
+from PDF page 10 rendered at 5400 pixels, cropped using
+`(1520, 495, 2260, 1275)`. The two panel titles are removed from the white area
+above the plots while preserving the top y-axis ticks. All plot content,
+reaction labels, coordinates and original color scales are retained, including
+fructose bounds 0.05–2.2 and oxygen bounds 1–10. Slide 17 replaces the former
+outlook skeleton and uses the figure-only layout with speaker notes.
