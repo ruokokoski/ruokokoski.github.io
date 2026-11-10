@@ -20,6 +20,18 @@ export function softmaxEvidence(logits, index) {
   return { maximum, denominator, numerator: Math.exp(logits[index] - maximum) };
 }
 
+export function attentionPairEvidence(layer, reaction, source, head) {
+  const query = layer.operations.query[head][reaction];
+  const key = layer.operations.key[head][source];
+  const products = query.map((value, i) => value * key[i]);
+  return {
+    query, key, products, dotProduct: products.reduce((sum, value) => sum + value, 0),
+    scale: Math.sqrt(query.length),
+    score: layer.operations.scaled_logits[head][reaction][source],
+    weights: layer.operations.attention[head][reaction],
+  };
+}
+
 export function scalarEvidence(layer, reaction, head, weights) {
   const operations = layer.operations;
   return {

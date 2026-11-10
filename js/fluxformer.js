@@ -1,4 +1,4 @@
-import { TraceStore, steps, format, topSources, softmaxEvidence, scalarEvidence, trajectory } from "./fluxformer-data.js";
+import { TraceStore, steps, format, topSources, softmaxEvidence, scalarEvidence, trajectory, attentionPairEvidence } from "./fluxformer-data.js";
 
 const root = document.getElementById("fluxformer");
 if (root) start();
@@ -10,7 +10,7 @@ function start() {
   const number = value => `<span class="ff-number" title="${exact(value)}">${format(value)}</span>`;
   const percent = value => `${(value * 100).toFixed(2)}%`;
   const state = { sample: 722, reaction: 12, layer: 0, head: 0, source: null, feature: 0, hidden: 0,
-    nutrient: 0, channel: "scalar", step: Math.max(0, steps.indexOf(location.hash.slice(1))), search: "", page: 0 };
+    nutrient: 0, pairFeature: 0, channel: "scalar", step: Math.max(0, steps.indexOf(location.hash.slice(1))), search: "", page: 0 };
   let store, meta, overview, layer, revision = 0;
   const titles = ["Start with a nutrient condition", "Compare one query with all 95 keys", "Use attention to update both channels",
     "Let the two channels interact", "Refine the states across three layers", "Read the final flux predictions"];
@@ -94,6 +94,45 @@ function start() {
         <p>Bound ${escape(nutrient.exchange_id)} maps to <code>${escape(reaction(nutrient.token_index).token)}</code>. The target is the simulator’s resulting flux, which can differ from the bound. Units: mmol gDW⁻¹ h⁻¹.</p>`)}`;
   }
 
+  function attentionDiagram(r, j, h) {
+    const pair = attentionPairEvidence(layer, r, j, h);
+    const f = state.pairFeature;
+    const queryY = 10 + (r + 0.5) / 95 * 130;
+    const keyX = 10 + (j + 0.5) / 95 * 160;
+    const cellX = 25 + (j + 0.5) / 95 * 130;
+    const cellY = 10 + (r + 0.5) / 95 * 130;
+    const vector = (values, label) => {
+      const maximum = Math.max(...values.map(Math.abs)) || 1;
+      return `<div class="ff-pair-vector"><span>${label}</span><div class="ff-pair-cells" role="img" aria-label="${escape(label.replace(/<[^>]*>/g, ""))}: all 16 recorded features">${values.map((value, i) => `<span class="ff-pair-cell ${value < 0 ? "negative" : value > 0 ? "positive" : "zero"}${i === f ? " is-active" : ""}" data-feature="${i}" data-value="${exact(value)}" title="Feature ${i}: ${exact(value)}" style="--strength:${15 + Math.abs(value) / maximum * 75}%"></span>`).join("")}</div></div>`;
+    };
+    return `<figure class="ff-matrix-walkthrough" data-query="${r}" data-key="${j}" data-head="${h}" data-layer="${state.layer}">
+      <figcaption><strong>One head: a row meets a column</strong><span>Highlights follow the receiving reaction and selected source. Matrix shapes are schematic; indices identify their actual positions.</span></figcaption>
+      <label class="ff-field ff-matrix-source" for="ff-source"><span>Source reaction (key)</span><select id="ff-source" aria-describedby="ff-source-help">${reactionOptions(j)}</select></label>
+      <p id="ff-source-help" class="ff-caption">The receiving reaction selected above supplies Q; this source supplies K. Selecting another source changes the comparison shown. All 95 sources still participate.</p>
+      <div class="ff-matrix-product">
+        <div class="ff-matrix-card"><h3>Queries Q</h3><span>95 × 16</span><svg viewBox="0 0 180 150" role="img" aria-label="Query matrix: row ${r} highlighted"><rect class="ff-matrix-body" x="75" y="10" width="22" height="130"/><path class="ff-matrix-guide" d="M75 36H97 M75 62H97 M75 88H97 M75 114H97"/><rect class="ff-query-mark" x="75" y="${queryY - 1.5}" width="22" height="3"/><path class="ff-query-line" d="M61 ${queryY}H111"/></svg><p>Row <strong>${r}</strong><small>Receiving token</small></p></div>
+        <span class="ff-matrix-operator" aria-label="multiplied by">×</span>
+        <div class="ff-matrix-card"><h3>Keys Kᵀ</h3><span>16 × 95</span><svg viewBox="0 0 180 150" role="img" aria-label="Transposed key matrix: column ${j} highlighted"><rect class="ff-matrix-body" x="10" y="62" width="160" height="27"/><path class="ff-matrix-guide" d="M42 62V89 M74 62V89 M106 62V89 M138 62V89"/><rect class="ff-key-mark" x="${keyX - 1.5}" y="62" width="3" height="27"/><path class="ff-key-line" d="M${keyX} 49V102"/></svg><p>Column <strong>${j}</strong><small>Source token</small></p></div>
+        <span class="ff-matrix-operator" aria-label="equals">=</span>
+        <div class="ff-matrix-card"><h3>Scores QKᵀ</h3><span>95 × 95</span><svg viewBox="0 0 180 150" role="img" aria-label="Score matrix: receiving row ${r}, source column ${j}, selected cell ${r}, ${j}"><rect class="ff-matrix-body" x="25" y="10" width="130" height="130"/><path class="ff-matrix-guide" d="M25 36H155 M25 62H155 M25 88H155 M25 114H155 M51 10V140 M77 10V140 M103 10V140 M129 10V140"/><rect class="ff-score-row" x="25" y="${cellY - 2}" width="130" height="4"/><path class="ff-key-line" d="M${cellX} 10V140"/><circle class="ff-score-cell" cx="${cellX}" cy="${cellY}" r="4"/></svg><p>Cell <strong>[${r}, ${j}]</strong><small>One of 95 in this row</small></p></div>
+      </div>
+      <div class="ff-pair-calculation">
+        <h3>Match the 16 features</h3><p class="ff-caption">The selected Q row and K column are aligned horizontally here. Blue is negative, red is positive; outlines mark feature ${f}.</p>
+        ${vector(pair.query, `Q<sub>${r}</sub>`)}${vector(pair.key, `K<sub>${j}</sub>`)}
+        ${featureField("pair-feature", "Head feature to inspect", f, 15)}
+        <div class="ff-feature-product" data-feature="${f}"><span>Feature ${f} of 16</span><div>${number(pair.query[f])} × ${number(pair.key[f])} = <strong>${number(pair.products[f])}</strong></div></div>
+        <div class="ff-score-calculation"><div><span>Sum all 16 products</span><strong class="ff-dot-product">${number(pair.dotProduct)}</strong></div><span aria-hidden="true">÷ 4 →</span><div><span>Recorded scaled score [${r}, ${j}]</span><strong class="ff-scaled-score">${number(pair.score)}</strong></div></div>
+        <p class="ff-caption">This one feature is only one term. The dot product uses all 16. Scaling by √16 = 4 is applied to every score in the matrix; displayed sums are reconstructed from the recorded features.</p>
+      </div>
+      <div class="ff-softmax-visual"><h3>Softmax acts on the whole receiving row</h3><p>All 95 scaled scores in row ${r} enter softmax together. The strip shows the 95 recorded weights, in source-token order.</p>
+        <div class="ff-weight-strip" role="img" aria-label="All 95 attention weights for query ${r}, with source ${j} highlighted">${pair.weights.map((weight, i) => `<span class="ff-weight-cell${i === j ? " is-active" : ""}" data-source-index="${i}" data-value="${exact(weight)}" title="Source ${i} (${escape(reaction(i).reaction_id)}): ${exact(weight)}" style="--strength:${8 + weight / (Math.max(...pair.weights) || 1) * 92}%"></span>`).join("")}</div>
+        <div class="ff-strip-labels"><span>Source 0</span><span>Source 94</span></div>
+        <p class="ff-weight-result">Selected source ${j}: <strong>${percent(pair.weights[j])}</strong><span>All 95 weights sum to ${number(pair.weights.reduce((sum, weight) => sum + weight, 0))}.</span></p>
+        <p class="ff-caption">Brighter cells indicate larger weights within this row. The highlighted cell is one weight, not a softmax calculated from one score.</p>
+      </div>
+    </figure>`;
+  }
+
   function attentionView() {
     const { reaction: r, head: h } = state;
     const o = layer.operations;
@@ -104,11 +143,8 @@ function start() {
     const evidence = softmaxEvidence(logits, j);
     const remaining = 1 - sources.reduce((sum, source) => sum + source.weight, 0);
     const terms = o.query[h][r].map((value, i) => [i, number(value), number(o.key[h][j][i]), number(value * o.key[h][j][i])]);
-    return `<ol class="ff-attention-method" aria-label="How attention is calculated">
-      <li><strong>Compare all 95 keys</strong><p>Compute Q<sub>${r}</sub> · K<sub>0</sub>, …, Q<sub>${r}</sub> · K<sub>94</sub>. Each head uses 16 features: 128 embedding features ÷ 8 heads.</p></li>
-      <li><strong>Scale each score</strong><p>Divide each dot product by √16 = 4 to keep scores from becoming too large and making softmax overly concentrated.</p></li>
-      <li><strong>Normalize the full row</strong><p>Softmax uses all 95 scaled scores together to produce 95 nonnegative attention weights that sum to one.</p></li>
-      </ol><p class="ff-caption">The model repeats this for all 95 queries in each of the eight heads, producing eight 95 × 95 attention matrices. Here we inspect one row of one head.</p>
+    return `${attentionDiagram(r, j, h)}
+      <p class="ff-caption">Each head uses 16 features: 128 embedding features ÷ 8 heads. The model repeats this calculation for all 95 queries in each of the eight heads. Dividing scores by √16 = 4 keeps their scale from making softmax overly concentrated.</p>
       <div class="ff-attention-layout"><div>
       <p class="ff-visual-label">Five largest weights in this 95-source row <span>Head ${h + 1}</span></p>
       <div class="ff-attention-rows">${sources.map(source => `<button type="button" data-source="${source.index}" class="ff-attention-row${j === source.index ? " is-selected" : ""}" aria-pressed="${j === source.index}"><span>${escape(name(source.index))}</span><span class="ff-weight-track"><i style="width:${source.weight * 100}%"></i></span><strong>${percent(source.weight)}</strong></button>`).join("")}</div>
@@ -119,8 +155,6 @@ function start() {
         ? "Q and K come only from the learned initial embeddings. Changing the condition leaves these weights unchanged; the scalar values propagated through them still change."
         : "The preceding feed-forward block mixed nutrient scalars into embeddings. This layer compares those updated embeddings."}</p></aside>
       ${detail("attention", "How is this attention weight calculated?", `
-        <label class="ff-field" for="ff-source"><span>Source reaction (key)</span><select id="ff-source" aria-describedby="ff-source-help">${reactionOptions(j)}</select></label>
-        <p id="ff-source-help">The receiving reaction selected above supplies the query Q; this source reaction supplies the key K. Changing the source selects another comparison to inspect. All 95 sources still participate in the calculation.</p>
         <p>LayerNorm normalizes each reaction’s 128-feature embedding before learned projections form Q, K, and V. Each projection is split across eight heads, leaving 16 features per head. V carries the information mixed in Step 3.</p>
         <p>For this selected pair only, sum all 16 query–key products and divide by √16 = 4. The same query is also compared with the other 94 keys. Softmax then normalizes the complete row of 95 scaled scores, including this one.</p>
         ${rowTable(["Receiving embedding (first four features)", "Before LayerNorm", "After LayerNorm"], layer.input_x[r].slice(0, 4).map((value, i) => [i, number(value), number(o.attention_norm[r][i])]))}
@@ -293,13 +327,14 @@ function start() {
     const { id, value } = event.target;
     if (id === "ff-source") state.source = Number(value);
     else if (id === "ff-nutrient") state.nutrient = Number(value);
-    else if (id === "ff-feature" || id === "ff-hidden") {
-      const maximum = id === "ff-feature" ? 127 : 639;
+    else if (id === "ff-feature" || id === "ff-hidden" || id === "ff-pair-feature") {
+      const field = id === "ff-feature" ? "feature" : id === "ff-hidden" ? "hidden" : "pairFeature";
+      const maximum = id === "ff-feature" ? 127 : id === "ff-hidden" ? 639 : 15;
       if (!Number.isInteger(Number(value)) || Number(value) < 0 || Number(value) > maximum || value === "") {
-        event.target.value = id === "ff-feature" ? state.feature : state.hidden;
+        event.target.value = state[field];
         return;
       }
-      state[id === "ff-feature" ? "feature" : "hidden"] = Number(value);
+      state[field] = Number(value);
     } else return;
     render({ keepDetails: true });
   });

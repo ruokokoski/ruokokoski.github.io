@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { TraceStore, format, topSources, scalarEvidence, softmaxEvidence, trajectory } from "../../js/fluxformer-data.js";
+import { TraceStore, format, topSources, scalarEvidence, softmaxEvidence, trajectory, attentionPairEvidence } from "../../js/fluxformer-data.js";
 
 const base = new URL("../../data/fluxformer/manifest.json", import.meta.url);
 const localFetch = async url => {
@@ -31,6 +31,15 @@ test("browser data helpers preserve all conditions, sources, heads, and scalar s
           assert.ok(sources.every((item, j) => j === 0 || sources[j - 1].weight >= item.weight));
           assert.ok(sources.reduce((sum, item) => sum + item.weight, 0) < 1);
           const selected = sources[0].index;
+          for (const source of [selected, r, 94]) {
+            const pair = attentionPairEvidence(layer, r, source, h);
+            assert.equal(pair.query.length, 16);
+            assert.equal(pair.key.length, 16);
+            assert.equal(pair.products.length, 16);
+            assert.equal(pair.scale, 4);
+            close(pair.dotProduct / pair.scale, layer.operations.scaled_logits[h][r][source]);
+            assert.deepEqual(pair.weights, layer.operations.attention[h][r]);
+          }
           const softmax = softmaxEvidence(layer.operations.scaled_logits[h][r], selected);
           close(softmax.numerator / softmax.denominator, layer.operations.attention[h][r][selected]);
           const scalar = scalarEvidence(layer, r, h, meta.head_weights[i]);

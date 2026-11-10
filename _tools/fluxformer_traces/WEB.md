@@ -86,6 +86,17 @@ Step 2 explains all 95 query–key comparisons (including self-attention), the
 16 features per head (128 ÷ 8), division by √16 = 4, and row-wise softmax
 across all 95 scores. The displayed pair is labeled as one entry in the row;
 the full pass produces eight 95 × 95 attention matrices.
+The linked matrix diagram highlights the query row, transposed-key column,
+and their score-cell intersection at the actual selected indices. Matrix
+shapes are schematic. Its source-key selector is directly above the matrices;
+the receiving query uses the main reaction selector. Beneath the matrices,
+two signed strips show all 16 recorded
+query/key features; a feature selector reveals one product, while the displayed
+sum always includes all 16. The raw sum is reconstructed in JavaScript double
+precision and checked against the recorded float32 scaled score at the
+existing tolerances. A strip retains all 95 recorded softmax weights in token
+order, with the selected source highlighted. None of these interactions reruns
+model inference or restricts the underlying reaction set.
 
 The interface denotes the 95 × 128 embedding matrix by X. Each reaction vector
 is one row, and X[i, j] selects reaction i's feature j using zero-based indices.
@@ -163,13 +174,16 @@ support, and disabled JavaScript. Screenshots default to
   complete source-to-published-data checks.
 - All five JavaScript tests pass, covering four samples and three layers,
   numerical explanation consistency, caching, retry, and loader compatibility.
-- All 215 browser assertions pass in Chromium and WebKit, including every
+- All 277 browser assertions pass in Chromium and WebKit, including every
   walkthrough stage at widths 320, 390, 768, 1024, and 1440px, both themes,
   keyboard focus, history, error recovery, and delayed-response protection.
   Selection checks verify that the six examples remain fixed while the
   separate inspection panel follows the chosen reaction and its exact data.
   Feature checks verify all 128 values and indices, blue/red sign colors in
   both themes, and that the complete vector fits at every tested width.
+  Matrix-diagram checks verify linked row/column/cell selection, every shown
+  Q/K feature, the selected feature product, the recorded scaled score, all
+  95 softmax weights, and changes of receiver, source, head, and layer.
 - Normal and `/preview`-prefixed Jekyll builds pass. The prefixed build includes
   trace assets, resolves the prefixed page/manifest/script URLs, and excludes
   the offline tools directory.

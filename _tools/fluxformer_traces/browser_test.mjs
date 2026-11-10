@@ -37,6 +37,20 @@ async function fits(page, label) {
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `no page overflow: ${label}`);
 }
 
+async function checkMatrixDiagram(page, expected, receiver, source, head) {
+  const diagram = page.locator(".ff-matrix-walkthrough");
+  check(await diagram.getAttribute("data-query") === String(receiver) &&
+        await diagram.getAttribute("data-key") === String(source) &&
+        await diagram.getAttribute("data-head") === String(head) &&
+        await diagram.getAttribute("data-layer") === String(expected.index), "matrix highlights follow receiver, source, head, and layer");
+  const vectors = await diagram.locator(".ff-pair-vector .ff-pair-cell").evaluateAll(cells => cells.map(cell => Number(cell.dataset.value)));
+  check(JSON.stringify(vectors) === JSON.stringify([...expected.operations.query[head][receiver], ...expected.operations.key[head][source]]), "both 16-feature vectors equal the recorded Q and K");
+  const weights = await diagram.locator(".ff-weight-cell").evaluateAll(cells => cells.map(cell => Number(cell.dataset.value)));
+  check(JSON.stringify(weights) === JSON.stringify(expected.operations.attention[head][receiver]), "softmax strip preserves all 95 recorded weights without subset normalization");
+  check(await diagram.locator(".ff-weight-cell.is-active").getAttribute("data-source-index") === String(source), "softmax strip highlights the chosen source");
+  check((await values(diagram.locator(".ff-scaled-score .ff-number")))[0] === expected.operations.scaled_logits[head][receiver][source], "diagram uses the original recorded scaled score");
+}
+
 for (const engine of ["chromium", "webkit"]) {
   const browser = await driver[engine].launch({ headless: true });
   try {
@@ -88,6 +102,16 @@ for (const engine of ["chromium", "webkit"]) {
     check(await page.locator(".ff-attention-row").count() === 5, "attention shows five sources");
     const firstLayer = await json(sample(722).layers[0]);
     const firstSource = Number(await page.locator(".ff-attention-row.is-selected").getAttribute("data-source"));
+    await checkMatrixDiagram(page, firstLayer, 12, firstSource, 0);
+    await page.locator("#ff-pair-feature").fill("15");
+    await page.locator("#ff-pair-feature").press("Tab");
+    await busy(page);
+    const productValues = await values(page.locator(".ff-feature-product .ff-number"));
+    check(productValues[0] === firstLayer.operations.query[0][12][15] && productValues[1] === firstLayer.operations.key[0][firstSource][15] && productValues[2] === productValues[0] * productValues[1], "selected feature shows its actual query, key, and product");
+    check(await page.locator('.ff-pair-cell.is-active[data-feature="15"]').count() === 2, "feature selection links both vector strips");
+    await page.locator("#ff-pair-feature").fill("16");
+    await page.locator("#ff-pair-feature").press("Tab");
+    check(await page.locator("#ff-pair-feature").inputValue() === "15", "feature inspection stays within the head's 16 features");
     check((await values(page.locator(".ff-equation .ff-number")))[0] === firstLayer.operations.scaled_logits[0][12][firstSource], "selected logit is exact");
     const firstWeights = await page.locator(".ff-attention-row strong").allTextContents();
     await page.locator(".ff-attention-row").nth(1).focus();
@@ -96,14 +120,21 @@ for (const engine of ["chromium", "webkit"]) {
     check(await page.evaluate(() => document.activeElement.matches(".ff-attention-row.is-selected")), "source selection preserves keyboard focus");
     await page.locator('[data-key="attention"] > summary').click();
     await change(page, "source", 94);
+    await checkMatrixDiagram(page, firstLayer, 12, 94, 0);
     check((await values(page.locator(".ff-equation .ff-number")))[0] === firstLayer.operations.scaled_logits[0][12][94], "any of 95 sources can be inspected");
     check(await page.locator('[data-key="attention"]').getAttribute("open") !== null, "details remain open after local selection");
+    await change(page, "reaction", 27);
+    await checkMatrixDiagram(page, firstLayer, 27, Number(await page.locator(".ff-matrix-walkthrough").getAttribute("data-key")), 0);
+    await change(page, "reaction", 12);
     await change(page, "sample", 870);
     check(JSON.stringify(await page.locator(".ff-attention-row strong").allTextContents()) === JSON.stringify(firstWeights), "first-layer attention display stays fixed across conditions");
     await change(page, "head", 7);
     await change(page, "layer", 1);
+    const attentionLayer = await json(sample(870).layers[1]);
+    await checkMatrixDiagram(page, attentionLayer, 12, Number(await page.locator(".ff-matrix-walkthrough").getAttribute("data-key")), 7);
     check((await page.locator(".ff-insight").innerText()).includes("Later attention"), "later-layer context explanation");
     await page.screenshot({ path: `${screenshots}/${engine}-attention.png`, fullPage: true });
+    await page.locator(".ff-matrix-walkthrough").screenshot({ path: `${screenshots}/${engine}-matrix-diagram.png` });
 
     await step(page, 2);
     const layer = await json(sample(870).layers[1]);
@@ -162,6 +193,10 @@ for (const engine of ["chromium", "webkit"]) {
         if (stage === 0) {
           check(await page.locator(".ff-vector-full .ff-feature").count() === 128, `all 128 features remain visible at ${width}px`);
           check(await page.locator(".ff-vector-full").evaluate(chart => chart.scrollWidth <= chart.clientWidth), `full feature chart fits at ${width}px`);
+        }
+        if (stage === 1) {
+          check(await page.locator(".ff-matrix-product").evaluate(chart => chart.scrollWidth <= chart.clientWidth), `linked matrices fit at ${width}px`);
+          check(await page.locator(".ff-weight-cell").count() === 95, `all 95 softmax weights remain represented at ${width}px`);
         }
       }
     }
