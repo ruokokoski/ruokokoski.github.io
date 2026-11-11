@@ -51,6 +51,54 @@ async function checkMatrixDiagram(page, expected, receiver, source, head) {
   check((await values(diagram.locator(".ff-scaled-score .ff-number")))[0] === expected.operations.scaled_logits[head][receiver][source], "diagram uses the original recorded scaled score");
 }
 
+async function checkValueDiagram(page, expected, receiver, head, feature) {
+  const diagram = page.locator(".ff-value-matrix");
+  const source = Number(await diagram.getAttribute("data-source"));
+  check(await diagram.getAttribute("data-receiver") === String(receiver) &&
+        await diagram.getAttribute("data-head") === String(head) &&
+        await diagram.getAttribute("data-layer") === String(expected.index) &&
+        await diagram.getAttribute("data-feature") === String(feature), "A × V highlights follow receiver, head, layer, and output feature");
+  const weights = expected.operations.attention[head][receiver];
+  const column = expected.operations.value[head].map(vector => vector[feature]);
+  for (const [kind, reference] of [["attention", weights], ["values", column], ["products", weights.map((value, i) => value * column[i])]]) {
+    const actual = await diagram.locator(`.ff-value-strip-${kind} .ff-value-cell`).evaluateAll(cells => cells.map(cell => Number(cell.dataset.value)));
+    check(JSON.stringify(actual) === JSON.stringify(reference), `all 95 A × V ${kind} entries are exact and in source order`);
+  }
+  check(await diagram.locator(`.ff-value-cell.is-active[data-source-index="${source}"]`).count() === 3, "source selection links weight, value, and contribution strips");
+  check((await values(diagram.locator(".ff-value-output .ff-number")))[0] === expected.operations.weighted_values[head][receiver][feature], "head-output result is the original recorded value");
+  const output = await diagram.locator(".ff-pair-cell").evaluateAll(cells => cells.map(cell => Number(cell.dataset.value)));
+  check(JSON.stringify(output) === JSON.stringify(expected.operations.weighted_values[head][receiver]), "head-output strip preserves all 16 recorded features");
+}
+
+async function checkInitialMatrices(page, overview, receiver, feature) {
+  const diagram = page.locator(".ff-initial-matrices");
+  check(await diagram.getAttribute("data-reaction") === String(receiver) &&
+        await diagram.getAttribute("data-feature") === String(feature), "X and c share the selected reaction row and X feature");
+  const row = await diagram.locator(".ff-initial-feature").evaluateAll(cells => cells.map(cell => Number(cell.dataset.value)));
+  check(JSON.stringify(row) === JSON.stringify(meta.initial_x[receiver]), "highlighted X row preserves all 128 learned features");
+  const scalars = await diagram.locator(".ff-initial-c-cell").evaluateAll(cells => cells.map(cell => Number(cell.dataset.value)));
+  check(JSON.stringify(scalars) === JSON.stringify(overview.initial_c), "c column preserves all 95 initialized scalars");
+  const slots = await diagram.locator(".ff-initial-c-cell").evaluateAll(cells => cells.map(cell => cell.dataset.input === "true"));
+  check(slots.filter(Boolean).length === 20 && slots.every((input, i) => input === (meta.reactions[i].input_index !== null)), "all 20 input slots and 75 non-input slots retain the exact mapping");
+  const selected = await values(diagram.locator(".ff-initial-values .ff-number"));
+  check(selected[0] === meta.initial_x[receiver][feature] && selected[1] === overview.initial_c[receiver], "selected X cell and matching c scalar are exact");
+  check(await page.locator(`.ff-vector-full .ff-feature.is-active[data-feature="${feature}"]`).count() === 1, "full-vector inspector highlights the same feature as X");
+}
+
+async function clickInitialMatrix(page, matrix, receiver, feature = 0) {
+  const svg = page.locator(".ff-initial-matrix-svg");
+  await svg.scrollIntoViewIfNeeded();
+  const point = await svg.evaluate((element, input) => {
+    const box = element.querySelector(input.matrix === "X" ? ".ff-initial-x-body" : ".ff-initial-c-body").getBBox();
+    const local = new DOMPoint(box.x + (input.matrix === "X" ? (input.feature + .5) / 128 : .5) * box.width,
+      box.y + (input.receiver + .5) / 95 * box.height);
+    const screen = local.matrixTransform(element.getScreenCTM());
+    return { x: screen.x, y: screen.y };
+  }, { matrix, receiver, feature });
+  await page.mouse.click(point.x, point.y);
+  await busy(page);
+}
+
 for (const engine of ["chromium", "webkit"]) {
   const browser = await driver[engine].launch({ headless: true });
   try {
@@ -60,22 +108,28 @@ for (const engine of ["chromium", "webkit"]) {
     const requests = [];
     page.on("request", request => requests.push(request.url()));
     await page.goto(`${base}/fluxformer/`);
-    await page.waitForSelector(".ff-token");
+    await page.waitForSelector(".ff-initial-matrices");
     check((await page.locator(".site-nav a").allTextContents()).join("|") === "Home|FluxFormer|Research|Blog", "navigation order");
     check(await page.locator(".site-nav a[aria-current=page]").textContent() === "FluxFormer", "active navigation");
     check(!requests.some(url => url.endsWith(".json.gz")), "initialization does not download full layers");
-    check(await page.locator(".ff-token").count() === 6, "only six representative tokens visible");
+    check(await page.locator(".ff-token").count() === 0, "X/c matrix overview replaces the six example cards");
     check(await page.locator("#ff-layer-field").isHidden(), "layer control is contextual");
     await page.locator('[data-key="nutrients"] > summary').click();
     await change(page, "nutrient", 18);
     const overview722 = await json(sample(722).overview);
     check((await values(page.locator('[data-key="nutrients"] .ff-number')))[0] === overview722.constraints[18], "displayed oxygen bound is exact");
-    const fixedExamples = await page.locator(".ff-token").evaluateAll(tokens => tokens.map(token => token.dataset.reaction));
+    await checkInitialMatrices(page, overview722, 12, 0);
     await change(page, "reaction", 0);
-    check(JSON.stringify(await page.locator(".ff-token").evaluateAll(tokens => tokens.map(token => token.dataset.reaction))) === JSON.stringify(fixedExamples), "choosing another reaction preserves all six fixed examples");
+    await checkInitialMatrices(page, overview722, 0, 0);
     check(await page.locator(".ff-inspection > header code").textContent() === "ACALD", "selected reaction appears in its own panel");
-    check(await page.locator(".ff-token.is-selected").count() === 0, "unrelated examples are not highlighted");
     await change(page, "reaction", 25);
+    await page.locator("#ff-feature").fill("127");
+    await page.locator("#ff-feature").press("Tab");
+    await busy(page);
+    await checkInitialMatrices(page, overview722, 25, 127);
+    await page.locator("#ff-feature").fill("0");
+    await page.locator("#ff-feature").press("Tab");
+    await busy(page);
     check((await values(page.locator(".ff-initial-scalar .ff-number")))[0] === overview722.initial_c[25], "separate panel displays the selected input scalar exactly");
     const features = await page.locator(".ff-vector-full .ff-feature").evaluateAll(bars => bars.map(bar => ({
       index: Number(bar.dataset.feature), value: Number(bar.dataset.value),
@@ -87,15 +141,20 @@ for (const engine of ["chromium", "webkit"]) {
     const blue = features.find(feature => feature.sign < 0).color.match(/\d+/g).map(Number);
     const red = features.find(feature => feature.sign > 0).color.match(/\d+/g).map(Number);
     check(blue[2] > blue[0] && red[0] > red[2], "negative bars are blue and positive bars are red");
-    check(await page.locator(".ff-token .ff-feature").count() === 48, "six compact tokens retain eight preview features each");
     await page.locator('[data-key="embedding"] > summary').click();
     check((await values(page.locator('[data-key="embedding"] .ff-equation .ff-number')))[0] === meta.initial_x[25][0], "embedding inspector follows the separate selection");
-    await page.locator('.ff-token[data-reaction="27"]').click();
-    await busy(page);
-    check(await page.locator("#ff-reaction").inputValue() === "27" && await page.locator(".ff-inspection > header code").textContent() === "EX_glc__D_e", "clicking a fixed example updates the selector and inspection panel");
-    check(await page.locator('.ff-token[data-reaction="27"]').getAttribute("aria-pressed") === "true", "selected example remains highlighted");
-    await change(page, "reaction", 12);
+    await clickInitialMatrix(page, "X", 27, 12);
+    await checkInitialMatrices(page, overview722, 27, 12);
+    check(await page.locator("#ff-reaction").inputValue() === "27" && await page.locator(".ff-inspection > header code").textContent() === "EX_glc__D_e", "clicking X updates the reaction selector and inspection panel");
+    check(await page.locator("#ff-feature").inputValue() === "12", "clicking X selects its feature column");
+    await clickInitialMatrix(page, "c", 12);
+    await checkInitialMatrices(page, overview722, 12, 12);
+    check(await page.locator("#ff-feature").inputValue() === "12", "clicking c changes the reaction while retaining the X feature");
+    await change(page, "sample", 870);
+    await checkInitialMatrices(page, await json(sample(870).overview), 12, 12);
+    await change(page, "sample", 722);
     await page.screenshot({ path: `${screenshots}/${engine}-initial.png`, fullPage: true });
+    await page.locator(".ff-initial-matrices").screenshot({ path: `${screenshots}/${engine}-initial-matrices.png` });
     await page.locator(".ff-inspection").screenshot({ path: `${screenshots}/${engine}-selected-vector.png` });
 
     await step(page, 1);
@@ -142,6 +201,29 @@ for (const engine of ["chromium", "webkit"]) {
     check(scalarNumbers[0] === layer.input_c[12][0] && scalarNumbers[2] === layer.operations.scalar_residual[12][0], "scalar residual uses exact recorded values");
     await page.locator('[data-channel="embedding"]').click();
     await busy(page);
+    await checkValueDiagram(page, layer, 12, 7, 0);
+    await page.locator("#ff-value-feature").fill("15");
+    await page.locator("#ff-value-feature").press("Tab");
+    await busy(page);
+    await checkValueDiagram(page, layer, 12, 7, 15);
+    const beforeSourceChange = await values(page.locator(".ff-value-output .ff-number"));
+    await change(page, "source", 94);
+    await checkValueDiagram(page, layer, 12, 7, 15);
+    check(JSON.stringify(await values(page.locator(".ff-value-output .ff-number"))) === JSON.stringify(beforeSourceChange), "inspecting another source does not remove terms or change the head output");
+    const valueTerm = await values(page.locator(".ff-value-term .ff-number"));
+    check(valueTerm[0] === layer.operations.attention[7][12][94] && valueTerm[1] === layer.operations.value[7][94][15] && valueTerm[2] === valueTerm[0] * valueTerm[1], "one selected source contribution uses the recorded A and V");
+    await change(page, "head", 0);
+    await checkValueDiagram(page, layer, 12, 0, 15);
+    await change(page, "reaction", 27);
+    await checkValueDiagram(page, layer, 27, 0, 15);
+    await change(page, "reaction", 12);
+    await change(page, "head", 7);
+    await change(page, "layer", 2);
+    await checkValueDiagram(page, await json(sample(870).layers[2]), 12, 7, 15);
+    await change(page, "layer", 1);
+    await page.locator('[data-key="vector"] > summary').click();
+    check(await page.locator('[data-key="vector"] tbody tr').count() === 16, "expanded head output shows all 16 features, not four heads");
+    await page.locator(".ff-value-matrix").screenshot({ path: `${screenshots}/${engine}-value-matrix.png` });
     await page.locator("#ff-feature").fill("127");
     await page.locator("#ff-feature").press("Tab");
     await busy(page);
@@ -193,10 +275,16 @@ for (const engine of ["chromium", "webkit"]) {
         if (stage === 0) {
           check(await page.locator(".ff-vector-full .ff-feature").count() === 128, `all 128 features remain visible at ${width}px`);
           check(await page.locator(".ff-vector-full").evaluate(chart => chart.scrollWidth <= chart.clientWidth), `full feature chart fits at ${width}px`);
+          check(await page.locator(".ff-initial-matrices").evaluate(chart => chart.scrollWidth <= chart.clientWidth), `X/c matrix overview fits at ${width}px`);
+          check(await page.locator(".ff-initial-c-cell").count() === 95, `all 95 scalar rows remain represented at ${width}px`);
         }
         if (stage === 1) {
           check(await page.locator(".ff-matrix-product").evaluate(chart => chart.scrollWidth <= chart.clientWidth), `linked matrices fit at ${width}px`);
           check(await page.locator(".ff-weight-cell").count() === 95, `all 95 softmax weights remain represented at ${width}px`);
+        }
+        if (stage === 2) {
+          check(await page.locator(".ff-value-matrix .ff-matrix-product").evaluate(chart => chart.scrollWidth <= chart.clientWidth), `A × V matrices fit at ${width}px`);
+          check(await page.locator(".ff-value-cell").count() === 285, `all three 95-source strips remain complete at ${width}px`);
         }
       }
     }
@@ -228,7 +316,7 @@ try {
   check((await page.locator("#ff-status").textContent()).includes("503"), "manifest failure is explained");
   failManifest = false;
   await page.locator("#ff-retry").click();
-  await page.waitForSelector(".ff-token");
+  await page.waitForSelector(".ff-initial-matrices");
   await page.route("**/sample-000722-layer-0.json.gz", route => failLayer ? route.fulfill({ status: 503, body: "Unavailable" }) : route.continue());
   await step(page, 1);
   check((await page.locator(".ff-notice").innerText()).includes("503"), "layer failure is explained");

@@ -32,6 +32,18 @@ export function attentionPairEvidence(layer, reaction, source, head) {
   };
 }
 
+export function valueMixEvidence(layer, reaction, source, head, feature) {
+  const weights = layer.operations.attention[head][reaction];
+  const values = layer.operations.value[head].map(vector => vector[feature]);
+  const products = weights.map((weight, index) => weight * values[index]);
+  return {
+    weights, values, products, sum: products.reduce((total, value) => total + value, 0),
+    weight: weights[source], value: values[source], contribution: products[source],
+    output: layer.operations.weighted_values[head][reaction][feature],
+    headOutput: layer.operations.weighted_values[head][reaction],
+  };
+}
+
 export function scalarEvidence(layer, reaction, head, weights) {
   const operations = layer.operations;
   return {

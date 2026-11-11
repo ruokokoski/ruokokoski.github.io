@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { TraceStore, format, topSources, scalarEvidence, softmaxEvidence, trajectory, attentionPairEvidence } from "../../js/fluxformer-data.js";
+import { TraceStore, format, topSources, scalarEvidence, softmaxEvidence, trajectory, attentionPairEvidence, valueMixEvidence } from "../../js/fluxformer-data.js";
 
 const base = new URL("../../data/fluxformer/manifest.json", import.meta.url);
 const localFetch = async url => {
@@ -43,6 +43,17 @@ test("browser data helpers preserve all conditions, sources, heads, and scalar s
           const softmax = softmaxEvidence(layer.operations.scaled_logits[h][r], selected);
           close(softmax.numerator / softmax.denominator, layer.operations.attention[h][r][selected]);
           const scalar = scalarEvidence(layer, r, h, meta.head_weights[i]);
+          for (const feature of [0, 15]) {
+            const mix = valueMixEvidence(layer, r, selected, h, feature);
+            assert.equal(mix.weights.length, 95);
+            assert.equal(mix.values.length, 95);
+            assert.equal(mix.products.length, 95);
+            assert.equal(mix.headOutput.length, 16);
+            close(mix.sum, layer.operations.weighted_values[h][r][feature]);
+            assert.equal(mix.value, layer.operations.value[h][selected][feature]);
+            assert.equal(mix.contribution, mix.weights[selected] * mix.value);
+            assert.deepEqual(mix.headOutput, layer.operations.weighted_values[h][r]);
+          }
           close(scalar.before + scalar.combined, scalar.after);
           close(layer.operations.attention[h][r].reduce((sum, value, j) => sum + value * layer.input_c[j][0], 0), scalar.head);
         }

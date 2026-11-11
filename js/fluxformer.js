@@ -1,4 +1,4 @@
-import { TraceStore, steps, format, topSources, softmaxEvidence, scalarEvidence, trajectory, attentionPairEvidence } from "./fluxformer-data.js";
+import { TraceStore, steps, format, topSources, softmaxEvidence, scalarEvidence, trajectory, attentionPairEvidence, valueMixEvidence } from "./fluxformer-data.js";
 
 const root = document.getElementById("fluxformer");
 if (root) start();
@@ -10,7 +10,7 @@ function start() {
   const number = value => `<span class="ff-number" title="${exact(value)}">${format(value)}</span>`;
   const percent = value => `${(value * 100).toFixed(2)}%`;
   const state = { sample: 722, reaction: 12, layer: 0, head: 0, source: null, feature: 0, hidden: 0,
-    nutrient: 0, pairFeature: 0, channel: "scalar", step: Math.max(0, steps.indexOf(location.hash.slice(1))), search: "", page: 0 };
+    nutrient: 0, pairFeature: 0, valueFeature: 0, channel: "scalar", step: Math.max(0, steps.indexOf(location.hash.slice(1))), search: "", page: 0 };
   let store, meta, overview, layer, revision = 0;
   const titles = ["Start with a nutrient condition", "Compare one query with all 95 keys", "Use attention to update both channels",
     "Let the two channels interact", "Refine the states across three layers", "Read the final flux predictions"];
@@ -36,9 +36,13 @@ function start() {
   const valuesPreview = (values, count = 8) => {
     const full = count >= values.length;
     const maximum = Math.max(...values.map(Math.abs)) || 1;
-    return `<div class="ff-vector${full ? " ff-vector-full" : ""}" role="img" aria-label="${full ? "All" : "First"} ${Math.min(count, values.length)}${full ? "" : ` of ${values.length}`} embedding features; blue is negative, red is positive; bar height indicates magnitude">${values.slice(0, count).map((value, i) => `<span class="ff-feature ${value < 0 ? "negative" : value > 0 ? "positive" : "zero"}" data-feature="${i}" data-value="${exact(value)}" title="Feature ${i}: ${exact(value)}" style="--level:${Math.abs(value) / maximum * 50}%"><i aria-hidden="true"></i></span>`).join("")}${full ? "" : "<b>…</b>"}</div>`;
+    return `<div class="ff-vector${full ? " ff-vector-full" : ""}" role="img" aria-label="${full ? "All" : "First"} ${Math.min(count, values.length)}${full ? "" : ` of ${values.length}`} embedding features; blue is negative, red is positive; bar height indicates magnitude">${values.slice(0, count).map((value, i) => `<span class="ff-feature ${value < 0 ? "negative" : value > 0 ? "positive" : "zero"}${full && i === state.feature ? " is-active" : ""}" data-feature="${i}" data-value="${exact(value)}" title="Feature ${i}: ${exact(value)}" style="--level:${Math.abs(value) / maximum * 50}%"><i aria-hidden="true"></i></span>`).join("")}${full ? "" : "<b>…</b>"}</div>`;
   };
   const featureField = (id, label, value, maximum) => `<label class="ff-field ff-small-field" for="ff-${id}"><span>${label} (0–${maximum})</span><input id="ff-${id}" type="number" min="0" max="${maximum}" step="1" value="${value}"></label>`;
+  const headFeatureVector = (values, label, active) => {
+    const maximum = Math.max(...values.map(Math.abs)) || 1;
+    return `<div class="ff-pair-vector"><span>${label}</span><div class="ff-pair-cells" role="img" aria-label="${escape(label.replace(/<[^>]*>/g, ""))}: all 16 recorded features">${values.map((value, i) => `<span class="ff-pair-cell ${value < 0 ? "negative" : value > 0 ? "positive" : "zero"}${i === active ? " is-active" : ""}" data-feature="${i}" data-value="${exact(value)}" title="Feature ${i}: ${exact(value)}" style="--strength:${15 + Math.abs(value) / maximum * 75}%"></span>`).join("")}</div></div>`;
+  };
   const unitNote = () => state.reaction === 12 ? "Growth rate in h⁻¹." : "Reaction flux in mmol gDW⁻¹ h⁻¹; the sign follows the model’s reaction direction.";
 
   async function initialize() {
@@ -62,30 +66,51 @@ function start() {
     }
   }
 
+  function initialMatrices() {
+    const r = state.reaction, f = state.feature;
+    const row = meta.initial_x[r];
+    const maximum = Math.max(...row.map(Math.abs)) || 1;
+    const rowY = 6 + r * 3;
+    const cellX = 4 + f * 3;
+    return `<figure class="ff-initial-matrices" data-reaction="${r}" data-feature="${f}">
+      <figcaption><strong>Two inputs, the same 95 reaction rows</strong><span>Each row pairs a learned embedding in X with one scalar in c. They enter separate channels.</span></figcaption>
+      ${featureField("feature", "Embedding feature", f, 127)}
+      <div class="ff-initial-plot">
+        <div class="ff-initial-labels"><div><strong class="ff-x">Embeddings X</strong><span>95 × 128</span></div><div><strong class="ff-c">Scalar c</strong><span>95 × 1</span></div></div>
+        <svg class="ff-initial-matrix-svg" data-initial-matrix viewBox="0 0 480 300" role="img" aria-label="Embedding matrix X, 95 by 128, and scalar column c, 95 by 1; selected reaction row ${r}, feature ${f}. Use the reaction and feature selectors for keyboard selection.">
+          <rect class="ff-matrix-body ff-initial-x-body" x="4" y="6" width="384" height="285"/>
+          <path class="ff-matrix-guide" d="M52 6V291 M100 6V291 M148 6V291 M196 6V291 M244 6V291 M292 6V291 M340 6V291 M4 63H388 M4 120H388 M4 177H388 M4 234H388"/>
+          <path class="ff-key-line" d="M${cellX + 1.5} 6V291"/>
+          ${row.map((value, i) => `<rect class="ff-initial-feature ${value < 0 ? "negative" : value > 0 ? "positive" : "zero"}" data-feature="${i}" data-value="${exact(value)}" x="${4 + i * 3}" y="${rowY}" width="3" height="3" style="--strength:${15 + Math.abs(value) / maximum * 75}%"><title>X[${r}, ${i}]: ${exact(value)}</title></rect>`).join("")}
+          <rect class="ff-initial-cell-highlight" x="${cellX - .5}" y="${rowY - .5}" width="4" height="4"/>
+          <rect class="ff-matrix-body ff-initial-c-body" x="448" y="6" width="24" height="285"/>
+          ${meta.reactions.map((reaction, i) => `<rect class="ff-initial-c-cell${reaction.input_index !== null ? " is-input" : ""}" data-row="${i}" data-input="${reaction.input_index !== null}" data-value="${exact(overview.initial_c[i])}" x="448" y="${6 + i * 3 + .35}" width="24" height="2.3"><title>Row ${i}, ${escape(reaction.reaction_id)}: c = ${exact(overview.initial_c[i])}; ${reaction.input_index !== null ? "exchange input" : "non-input initialized to zero"}</title></rect>`).join("")}
+          <path class="ff-query-line" d="M388 ${rowY + 1.5}H448"/>
+          <rect class="ff-initial-c-highlight" x="446" y="${rowY - 1}" width="28" height="5"/>
+        </svg>
+        <div class="ff-initial-axes"><span>X columns: features 0–127</span><span>Both: rows 0–94</span></div>
+      </div>
+      <div class="ff-initial-legend"><span>X row: <span class="negative">blue −</span> / <span class="positive">red +</span></span><span><i class="ff-input-swatch"></i> c: 20 input slots</span><span><i class="ff-zero-swatch"></i> c: 75 other zeros</span></div>
+      <p class="ff-caption">X’s shape is schematic; its highlighted row shows all 128 recorded features. The c column shows all 95 initial scalars. Amber input slots can also contain zero when their uptake bound is zero. The other 75 zeros are starting values, not fixed output fluxes.</p>
+      <div class="ff-initial-values">${card(`Selected X[${r}, ${f}]`, row[f], "ff-predicted-value")}${card(`Matched c[${r}, 0]`, overview.initial_c[r])}</div>
+      <p class="ff-caption">Select a reaction above and a feature here, or click X to select a row and column. Click c to select its matching reaction row. The full selected embedding is shown below.</p>
+    </figure>`;
+  }
+
   function initializeView() {
-    const shown = ["EX_glc__D_e", "EX_o2_e", "EX_pi_e", "PFK", "ATPS4r", "Biomass_Ecoli_core"]
-      .map(id => meta.reactions.find(r => r.reaction_id === id).index);
     const nutrient = meta.inputs[state.nutrient];
     const current = reaction(state.reaction);
-    const tokens = shown.map(index => `<button class="ff-token${index === state.reaction ? " is-selected" : ""}" type="button" data-reaction="${index}" aria-pressed="${index === state.reaction}">
-      <span>${escape(name(index))}</span><code>${escape(reaction(index).reaction_id)}</code>
-      ${valuesPreview(meta.initial_x[index])}<span class="ff-channel-label ff-x">Row of X · 128 learned features</span>
-      <strong class="ff-c">c = ${number(overview.initial_c[index])}</strong></button>`).join("");
-    return `<div class="ff-visual-label"><span>Reaction embeddings <b class="ff-x">X</b></span><span>Nutrient context <b class="ff-c">c</b></span></div>
-      <div class="ff-token-grid">${tokens}</div>
-      ${vectorLegend}
-      <p class="ff-caption">The first eight features are previewed for six fixed example tokens. Click an example or use “Inspect reaction” to choose any reaction. Its full embedding appears below.</p>
+    return `${initialMatrices()}
       <section class="ff-inspection" aria-labelledby="ff-inspection-title">
         <p class="ff-inspection-label">Selected reaction · followed through all six steps</p>
         <header><div><h3 id="ff-inspection-title">${escape(name(state.reaction))}</h3><code>${escape(current.reaction_id)}</code></div>
           <div class="ff-initial-scalar"><span>Initial scalar c</span><strong class="ff-c">${number(overview.initial_c[state.reaction])}</strong></div></header>
-        <div class="ff-inspection-embedding"><span class="ff-x">Row ${state.reaction} of X · all 128 learned features</span>${vectorLegend}${valuesPreview(meta.initial_x[state.reaction], 128)}<span class="ff-vector-order">Features 0–127, ordered left to right, then top to bottom. Bar height shows magnitude relative to this vector’s largest feature.</span></div>
+        <div class="ff-inspection-embedding"><span class="ff-x">Row ${state.reaction} of X · all 128 learned features</span>${vectorLegend}${valuesPreview(meta.initial_x[state.reaction], 128)}<span class="ff-vector-order">Features 0–127, ordered left to right, then top to bottom. The outlined feature is ${state.feature}. Bar height shows magnitude relative to this vector’s largest feature.</span></div>
         <p>${current.input_index === null
         ? `This reaction has no supplied nutrient bound. Its scalar starts at ${number(0)}; its embedding is learned during training.`
         : `The signed bound ${number(overview.initial_c[state.reaction])} is copied into this token’s scalar. A negative bound allows uptake up to that magnitude; it is not the amount actually taken up.`}</p>
         ${detail("embedding", "Inspect one embedding feature", `<p>Each reaction starts with <strong>128 learned embedding features</strong>. These numbers are initialized randomly before training, then adjusted to help the model compute attention and predict fluxes. The walkthrough uses their trained values.</p>
           <p>The 95 reaction vectors form the <strong>95 × 128 embedding matrix X</strong>. <code>X[i, j]</code> means feature <code>j</code> of reaction <code>i</code>, counting from zero. Individual features have no predefined biological meaning.</p>
-          ${featureField("feature", "Embedding feature", state.feature, 127)}
           ${equation(`X[${state.reaction}, ${state.feature}] = ${number(meta.initial_x[state.reaction][state.feature])}`, "The initial embedding depends on reaction identity, so it is the same under every nutrient condition.")}`)}
       </section>
       ${detail("nutrients", "Inspect a nutrient bound and its matching token", `
@@ -101,10 +126,6 @@ function start() {
     const keyX = 10 + (j + 0.5) / 95 * 160;
     const cellX = 25 + (j + 0.5) / 95 * 130;
     const cellY = 10 + (r + 0.5) / 95 * 130;
-    const vector = (values, label) => {
-      const maximum = Math.max(...values.map(Math.abs)) || 1;
-      return `<div class="ff-pair-vector"><span>${label}</span><div class="ff-pair-cells" role="img" aria-label="${escape(label.replace(/<[^>]*>/g, ""))}: all 16 recorded features">${values.map((value, i) => `<span class="ff-pair-cell ${value < 0 ? "negative" : value > 0 ? "positive" : "zero"}${i === f ? " is-active" : ""}" data-feature="${i}" data-value="${exact(value)}" title="Feature ${i}: ${exact(value)}" style="--strength:${15 + Math.abs(value) / maximum * 75}%"></span>`).join("")}</div></div>`;
-    };
     return `<figure class="ff-matrix-walkthrough" data-query="${r}" data-key="${j}" data-head="${h}" data-layer="${state.layer}">
       <figcaption><strong>One head: a row meets a column</strong><span>Highlights follow the receiving reaction and selected source. Matrix shapes are schematic; indices identify their actual positions.</span></figcaption>
       <label class="ff-field ff-matrix-source" for="ff-source"><span>Source reaction (key)</span><select id="ff-source" aria-describedby="ff-source-help">${reactionOptions(j)}</select></label>
@@ -118,7 +139,7 @@ function start() {
       </div>
       <div class="ff-pair-calculation">
         <h3>Match the 16 features</h3><p class="ff-caption">The selected Q row and K column are aligned horizontally here. Blue is negative, red is positive; outlines mark feature ${f}.</p>
-        ${vector(pair.query, `Q<sub>${r}</sub>`)}${vector(pair.key, `K<sub>${j}</sub>`)}
+        ${headFeatureVector(pair.query, `Q<sub>${r}</sub>`, f)}${headFeatureVector(pair.key, `K<sub>${j}</sub>`, f)}
         ${featureField("pair-feature", "Head feature to inspect", f, 15)}
         <div class="ff-feature-product" data-feature="${f}"><span>Feature ${f} of 16</span><div>${number(pair.query[f])} × ${number(pair.key[f])} = <strong>${number(pair.products[f])}</strong></div></div>
         <div class="ff-score-calculation"><div><span>Sum all 16 products</span><strong class="ff-dot-product">${number(pair.dotProduct)}</strong></div><span aria-hidden="true">÷ 4 →</span><div><span>Recorded scaled score [${r}, ${j}]</span><strong class="ff-scaled-score">${number(pair.score)}</strong></div></div>
@@ -166,6 +187,42 @@ function start() {
         <p>The recorded float32 weight is displayed. The explanatory exponential terms use the same formula; values are rounded for readability.</p>`)}`;
   }
 
+  function valueDiagram(r, h) {
+    const k = state.valueFeature;
+    if (state.source === null) state.source = topSources(layer, r, h, 1)[0].index;
+    const j = state.source;
+    const mix = valueMixEvidence(layer, r, j, h, k);
+    const rowY = 10 + (r + 0.5) / 95 * 130;
+    const sourceY = 10 + (j + 0.5) / 95 * 130;
+    const attentionX = 25 + (j + 0.5) / 95 * 130;
+    const featureX = 75 + (k + 0.5) / 16 * 22;
+    const strip = (values, label, kind) => {
+      const maximum = Math.max(...values.map(Math.abs)) || 1;
+      return `<div class="ff-value-strip"><span>${label}</span><div class="ff-weight-strip ff-value-strip-${kind}" role="img" aria-label="${escape(label.replace(/<[^>]*>/g, ""))}: all 95 sources">${values.map((value, i) => `<span class="ff-value-cell ${kind === "attention" ? "attention" : value < 0 ? "negative" : value > 0 ? "positive" : "zero"}${i === j ? " is-active" : ""}" data-source-index="${i}" data-value="${exact(value)}" title="Source ${i} (${escape(reaction(i).reaction_id)}): ${exact(value)}" style="--strength:${10 + Math.abs(value) / maximum * 90}%"></span>`).join("")}</div></div>`;
+    };
+    return `<figure class="ff-matrix-walkthrough ff-value-matrix" data-receiver="${r}" data-source="${j}" data-head="${h}" data-layer="${state.layer}" data-feature="${k}">
+      <figcaption><strong>Use attention weights to mix value vectors</strong><span>A is the softmax attention matrix from Step 2. V contains this head’s learned value projections. One output feature combines values from all 95 source reactions. Matrix shapes are schematic.</span></figcaption>
+      <div class="ff-value-controls"><label class="ff-field ff-matrix-source" for="ff-source"><span>Source reaction (value)</span><select id="ff-source" aria-describedby="ff-value-help">${reactionOptions(j)}</select></label>${featureField("value-feature", "Head output feature", k, 15)}</div>
+      <p class="ff-caption" id="ff-value-help">Choose a source to inspect one contribution. Changing this selection does not remove the other 94 sources from the sum.</p>
+      <div class="ff-matrix-product">
+        <div class="ff-matrix-card"><h3>Attention A</h3><span>95 × 95</span><svg viewBox="0 0 180 150" role="img" aria-label="Attention matrix: receiving row ${r}, selected source ${j}"><rect class="ff-matrix-body" x="25" y="10" width="130" height="130"/><path class="ff-matrix-guide" d="M25 36H155 M25 62H155 M25 88H155 M25 114H155 M51 10V140 M77 10V140 M103 10V140 M129 10V140"/><rect class="ff-score-row" x="25" y="${rowY - 2}" width="130" height="4"/><path class="ff-key-line" d="M${attentionX} 10V140"/><circle class="ff-score-cell" cx="${attentionX}" cy="${rowY}" r="4"/></svg><p>Row <strong>${r}</strong><small>95 source weights</small></p></div>
+        <span class="ff-matrix-operator" aria-label="multiplied by">×</span>
+        <div class="ff-matrix-card"><h3>Values V</h3><span>95 × 16</span><svg viewBox="0 0 180 150" role="img" aria-label="Value matrix: feature column ${k}, selected source row ${j}"><rect class="ff-matrix-body" x="75" y="10" width="22" height="130"/><path class="ff-matrix-guide" d="M75 36H97 M75 62H97 M75 88H97 M75 114H97"/><rect class="ff-query-mark" x="${featureX - 1.2}" y="10" width="2.4" height="130"/><path class="ff-key-line" d="M62 ${sourceY}H110"/><circle class="ff-score-cell" cx="${featureX}" cy="${sourceY}" r="3"/></svg><p>Column <strong>${k}</strong><small>One value feature</small></p></div>
+        <span class="ff-matrix-operator" aria-label="equals">=</span>
+        <div class="ff-matrix-card"><h3>Head output</h3><span>95 × 16</span><svg viewBox="0 0 180 150" role="img" aria-label="Head output matrix: selected cell ${r}, ${k}"><rect class="ff-matrix-body" x="75" y="10" width="22" height="130"/><path class="ff-matrix-guide" d="M75 36H97 M75 62H97 M75 88H97 M75 114H97"/><rect class="ff-query-mark" x="75" y="${rowY - 1.5}" width="22" height="3"/><path class="ff-key-line" d="M${featureX} 10V140"/><circle class="ff-score-cell" cx="${featureX}" cy="${rowY}" r="4"/></svg><p>Cell <strong>[${r}, ${k}]</strong><small>Sum of 95 products</small></p></div>
+      </div>
+      <div class="ff-pair-calculation"><h3>Align all 95 source contributions</h3><p class="ff-caption">Each column below is one source token. Multiply its attention weight by its value at feature ${k}, then add all 95 products. Outlines mark source ${j}.</p>
+        ${strip(mix.weights, `A row ${r}`, "attention")}${strip(mix.values, `V column ${k}`, "values")}${strip(mix.products, "A × V terms", "products")}
+        <div class="ff-strip-labels ff-value-source-labels"><span>Source 0</span><span>Source 94</span></div>
+        <p class="ff-caption">Blue value/product cells are negative; red cells are positive. Color intensity is relative within each strip.</p>
+        <div class="ff-feature-product ff-value-term"><span>Selected source ${j}: ${escape(name(j))}</span><div>${number(mix.weight)} × ${number(mix.value)} = <strong>${number(mix.contribution)}</strong></div></div>
+        <div class="ff-score-calculation"><div><span>Reconstructed sum of all 95 products</span><strong class="ff-value-sum">${number(mix.sum)}</strong></div><span aria-hidden="true">→</span><div><span>Recorded head output [${r}, ${k}]</span><strong class="ff-value-output">${number(mix.output)}</strong></div></div>
+        <p class="ff-caption">This is a weighted sum, with no second softmax or division by four. The sum is reconstructed from recorded A and V; the recorded result retains PyTorch’s float32 calculation.</p>
+      </div>
+      <div class="ff-softmax-visual"><h3>This receiving token’s full 16-feature head output</h3>${headFeatureVector(mix.headOutput, `H<sub>${r}</sub>`, k)}<p class="ff-caption">Each of these 16 features sums contributions from all 95 sources. The outlined feature is ${k}. All eight head outputs are computed before concatenation.</p></div>
+    </figure>`;
+  }
+
   function mixView() {
     const { reaction: r, head: h, feature: f } = state;
     const o = layer.operations;
@@ -182,11 +239,11 @@ function start() {
           ${rowTable(["Head", "Scalar result", "Learned α", "α × result"], heads)}
           <p>α = softmax(head_scores). These learned weights combine the scalar heads only. The current head has weight ${percent(evidence.alpha)}.</p>`)} `;
     } else {
-      body = `<div class="ff-block-flow"><div><b>A × V</b><span>16 features / head</span></div><span aria-hidden="true">→</span><div><b>Concatenate 8 heads</b><span>128 features</span></div><span aria-hidden="true">→</span><div><b>Output projection</b><span>128 learned features</span></div></div>
+      body = `${valueDiagram(r, h)}<div class="ff-block-flow"><div><b>Concatenate 8 heads</b><span>8 × 16 = 128 features</span></div><span aria-hidden="true">→</span><div><b>Output projection</b><span>128 learned features</span></div><span aria-hidden="true">→</span><div><b>Add input X</b><span>Residual connection</span></div></div>
         ${featureField("feature", "Embedding feature", f, 127)}
         <div class="ff-residual"><span class="ff-residual-label">Residual addition · feature ${f}</span>${number(layer.input_x[r][f])} <span>+</span> ${number(o.output_projection[r][f])} <span>=</span> <strong class="ff-x">${number(o.embedding_residual[r][f])}</strong><small>Input X[${r}, ${f}] + projected attention update = updated X[${r}, ${f}]</small></div>
         <p class="ff-caption">Embedding heads are concatenated and projected. They do not use the scalar channel’s learned α weighting.</p>
-        ${detail("vector", "Inspect the selected head’s vector update", `${rowTable(["Head feature", "Weighted value A × V"], o.weighted_values[h][r].slice(0, 4).map((value, i) => [i, number(value)]))}<p>Four of the head’s 16 features are previewed. All eight heads contribute to the 128-feature output projection.</p>`)} `;
+        ${detail("vector", "Selected head: 16-feature attention output", `${rowTable(["Head feature", "Weighted value A × V"], o.weighted_values[h][r].map((value, i) => [i, number(value)]))}<p>All 16 features of the selected head are shown. All eight heads contribute to the 128-feature output projection.</p>`)} `;
     }
     return `<div class="ff-channel-switch" role="group" aria-label="Channel to inspect"><button type="button" data-channel="scalar" aria-pressed="${state.channel === "scalar"}"><span class="ff-c">c</span> Scalar channel</button><button type="button" data-channel="embedding" aria-pressed="${state.channel === "embedding"}"><span class="ff-x">X</span> Embedding channel</button></div>${body}`;
   }
@@ -311,6 +368,20 @@ function start() {
     if (meta) render({ focusTitle: true });
   });
   $("stage").addEventListener("click", event => {
+    const matrix = event.target.closest("[data-initial-matrix]");
+    if (matrix) {
+      const transform = matrix.getScreenCTM();
+      if (!transform) return;
+      const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(transform.inverse());
+      if (point.y < 6 || point.y >= 291) return;
+      if (point.x >= 4 && point.x < 388) state.feature = Math.floor((point.x - 4) / 3);
+      else if (point.x < 448 || point.x >= 472) return;
+      state.reaction = Math.floor((point.y - 6) / 3);
+      $("reaction").value = state.reaction;
+      state.source = null;
+      render({ keepDetails: true });
+      return;
+    }
     const button = event.target.closest("button");
     if (!button) return;
     if (button.hasAttribute("data-reaction")) {
@@ -327,8 +398,8 @@ function start() {
     const { id, value } = event.target;
     if (id === "ff-source") state.source = Number(value);
     else if (id === "ff-nutrient") state.nutrient = Number(value);
-    else if (id === "ff-feature" || id === "ff-hidden" || id === "ff-pair-feature") {
-      const field = id === "ff-feature" ? "feature" : id === "ff-hidden" ? "hidden" : "pairFeature";
+    else if (id === "ff-feature" || id === "ff-hidden" || id === "ff-pair-feature" || id === "ff-value-feature") {
+      const field = id === "ff-feature" ? "feature" : id === "ff-hidden" ? "hidden" : id === "ff-pair-feature" ? "pairFeature" : "valueFeature";
       const maximum = id === "ff-feature" ? 127 : id === "ff-hidden" ? 639 : 15;
       if (!Number.isInteger(Number(value)) || Number(value) < 0 || Number(value) > maximum || value === "") {
         event.target.value = state[field];

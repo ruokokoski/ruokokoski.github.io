@@ -69,9 +69,14 @@ navigation. No external decompression library or CDN is used.
 
 ## Display and scientific interpretation
 
-Initialization keeps six example tokens fixed and displays the selected reaction
-in a separate inspection panel. Clicking an example or choosing a reaction
-updates that panel and the reaction followed through later steps. Other steps
+Initialization shows aligned X (95 × 128) and c (95 × 1) matrices, replacing
+the six example cards. X's shape is schematic; the selected row retains all
+128 actual features. The c column shows all 95 recorded initial scalars, with
+20 exchange-input slots distinguished from the 75 other zero-initialized slots.
+The reaction selector updates the shared row highlight; the feature selector
+updates X's cell and the full-vector highlight. Clicking X selects a reaction
+and feature, while clicking c selects its reaction row. Native selectors offer
+precise keyboard access. The detailed reaction panel remains below. Other steps
 show five attention sources or one selected reaction's calculation. All 95 reactions remain accessible through
 native reaction/source selectors; final results have search and pagination
 with six rows per page. The selected sample, head, and layer apply consistently
@@ -98,11 +103,21 @@ existing tolerances. A strip retains all 95 recorded softmax weights in token
 order, with the selected source highlighted. None of these interactions reruns
 model inference or restricts the underlying reaction set.
 
+Step 3's embedding channel uses the same visual convention for
+`A [95,95] × V [95,16] = head output [95,16]`. It highlights a receiving row,
+value-feature column, and output cell. Three aligned strips retain all 95
+attention weights, source values, and products for that feature. A source
+selector inspects one term without filtering the sum; a separate head-feature
+selector ranges from 0 to 15. The reconstructed 95-term sum is checked against
+the recorded `weighted_values` result. All 16 output features appear in the
+strip and expandable table before the eight heads are concatenated and
+projected. The existing 0–127 embedding-feature selector then inspects the
+projected residual, a different stage from the 0–15 head-output feature.
+
 The interface denotes the 95 × 128 embedding matrix by X. Each reaction vector
 is one row, and X[i, j] selects reaction i's feature j using zero-based indices.
 Original trace keys such as `initial_x` remain unchanged.
-The six example tokens preview features 0–7. The selected panel displays all
-128 features, in one row on desktop and two rows on narrow screens. Negative
+The selected panel displays all 128 features, in one row on desktop and two rows on narrow screens. Negative
 features are blue and extend below zero; positive features are red and extend
 above zero. Heights use the vector's maximum absolute feature as their scale.
 Feature tooltips retain the exact index and recorded value.
@@ -174,16 +189,19 @@ support, and disabled JavaScript. Screenshots default to
   complete source-to-published-data checks.
 - All five JavaScript tests pass, covering four samples and three layers,
   numerical explanation consistency, caching, retry, and loader compatibility.
-- All 277 browser assertions pass in Chromium and WebKit, including every
+- All 467 browser assertions pass in Chromium and WebKit, including every
   walkthrough stage at widths 320, 390, 768, 1024, and 1440px, both themes,
   keyboard focus, history, error recovery, and delayed-response protection.
-  Selection checks verify that the six examples remain fixed while the
-  separate inspection panel follows the chosen reaction and its exact data.
+  Initialization checks verify the X row and cell, all 95 c values, the 20/75
+  input-slot mapping, linked feature inspection, and SVG selection in X and c.
   Feature checks verify all 128 values and indices, blue/red sign colors in
   both themes, and that the complete vector fits at every tested width.
   Matrix-diagram checks verify linked row/column/cell selection, every shown
   Q/K feature, the selected feature product, the recorded scaled score, all
   95 softmax weights, and changes of receiver, source, head, and layer.
+  A × V checks compare all 95 weights, values, and products, all 16 head-output
+  features, source-selection invariance, and feature/head/layer/receiver changes
+  with the original traces. All three source strips remain complete on mobile.
 - Normal and `/preview`-prefixed Jekyll builds pass. The prefixed build includes
   trace assets, resolves the prefixed page/manifest/script URLs, and excludes
   the offline tools directory.
