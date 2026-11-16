@@ -172,8 +172,8 @@ for (const engine of ["chromium", "webkit"]) {
     const blue = features.find(feature => feature.sign < 0).color.match(/\d+/g).map(Number);
     const red = features.find(feature => feature.sign > 0).color.match(/\d+/g).map(Number);
     check(blue[2] > blue[0] && red[0] > red[2], "negative bars are blue and positive bars are red");
-    await page.locator('[data-key="embedding"] > summary').click();
-    check((await values(page.locator('[data-key="embedding"] .ff-equation .ff-number')))[0] === meta.initial_x[25][0], "embedding inspector follows the separate selection");
+    check(await page.locator(".ff-inspection > .ff-equation").isVisible(), "selected embedding feature is visible without expanding details");
+    check((await values(page.locator('.ff-inspection > .ff-equation .ff-number')))[0] === meta.initial_x[25][0], "embedding inspector follows the separate selection");
     await clickInitialMatrix(page, "X", 27, 12);
     await checkInitialMatrices(page, overview722, 27, 12);
     check(await page.locator("#ff-reaction").inputValue() === "27" && await page.locator(".ff-inspection > header code").textContent() === "EX_glc__D_e", "clicking X updates the reaction selector and inspection panel");

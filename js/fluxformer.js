@@ -59,7 +59,7 @@ function start() {
     try {
       meta = await store.metadata();
       if (!meta.samples.some(sample => sample.row === state.sample)) state.sample = meta.samples[0].row;
-      $("sample").innerHTML = meta.samples.map(sample => `<option value="${sample.row}">${escape(sample.label)} · row ${sample.row}</option>`).join("");
+      $("sample").innerHTML = meta.samples.map(sample => `<option value="${sample.row}">${escape(sample.label)}</option>`).join("");
       $("sample").value = state.sample;
       $("reaction").innerHTML = reactionOptions(state.reaction);
       $("model-source").textContent = `Checkpoint: ${meta.model.name}, epoch ${meta.model.model_epoch}. Source checkpoint SHA-256: ${meta.provenance.artifacts.checkpoint.sha256}.`;
@@ -111,13 +111,12 @@ function start() {
         <p class="ff-inspection-label">Selected reaction · followed through all seven steps</p>
         <header><div><h3 id="ff-inspection-title">${escape(name(state.reaction))}</h3><code>${escape(current.reaction_id)}</code></div>
           <div class="ff-initial-scalar"><span>Initial scalar c</span><strong class="ff-c">${number(overview.initial_c[state.reaction])}</strong></div></header>
+        <p class="ff-caption">Embedding features start randomly before training and are learned for attention and flux prediction. Each reaction supplies one row of X (95 × 128); individual features have no predefined biological meaning.</p>
         <div class="ff-inspection-embedding"><span class="ff-x">Row ${state.reaction} of X · all 128 learned features</span>${vectorLegend}${valuesPreview(meta.initial_x[state.reaction], 128)}<span class="ff-vector-order">Features 0–127, ordered left to right, then top to bottom. The outlined feature is ${state.feature}. Bar height shows magnitude relative to this vector’s largest feature.</span></div>
+        ${equation(`X[${state.reaction}, ${state.feature}] = ${number(meta.initial_x[state.reaction][state.feature])}`, "X[i, j] selects reaction i’s feature j, with indices starting at zero. Initial embeddings are the same for every nutrient condition.")}
         <p>${current.input_index === null
-        ? `This reaction has no supplied nutrient bound. Its scalar starts at ${number(0)}; its embedding is learned during training.`
+        ? `This reaction has no supplied nutrient bound, so its scalar starts at ${number(0)}.`
         : `The signed bound ${number(overview.initial_c[state.reaction])} is copied into this token’s scalar. A negative bound allows uptake up to that magnitude; it is not the amount actually taken up.`}</p>
-        ${detail("embedding", "Inspect one embedding feature", `<p>Each reaction starts with <strong>128 learned embedding features</strong>. These numbers are initialized randomly before training, then adjusted to help the model compute attention and predict fluxes. The walkthrough uses their trained values.</p>
-          <p>The 95 reaction vectors form the <strong>95 × 128 embedding matrix X</strong>. <code>X[i, j]</code> means feature <code>j</code> of reaction <code>i</code>, counting from zero. Individual features have no predefined biological meaning.</p>
-          ${equation(`X[${state.reaction}, ${state.feature}] = ${number(meta.initial_x[state.reaction][state.feature])}`, "The initial embedding depends on reaction identity, so it is the same under every nutrient condition.")}`)}
       </section>
       ${detail("nutrients", "Inspect a nutrient bound and its matching token", `
         <label class="ff-field" for="ff-nutrient"><span>Nutrient input</span><select id="ff-nutrient">${meta.inputs.map((input, i) => `<option value="${i}"${i === state.nutrient ? " selected" : ""}>${escape(input.exchange_id)}</option>`).join("")}</select></label>
