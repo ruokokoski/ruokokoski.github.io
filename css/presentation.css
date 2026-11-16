@@ -41,9 +41,19 @@
 .presentation[data-current-slide="thank-you"] .slide-footer { display: none; }
 .slide-placeholder-text { color: var(--muted); font-size: var(--slide-text-size); }
 .slide-title-lines { display: grid; gap: calc(var(--slide-heading-size) * .08); width: calc(var(--slide-heading-size) * 3.7); margin-bottom: calc(var(--slide-heading-size) * .4); flex: 0 0 auto; }
-.slide-title-lines span { display: block; height: calc(var(--slide-heading-size) * .05); border-radius: 1em; background: #8ed2bc; }
+.slide-title-lines span { display: block; height: calc(var(--slide-heading-size) * .05); border-radius: 1em; background: #8ed2bc; transform-origin: left center; }
 .slide-title-lines span:nth-child(2) { width: 90%; }
 .slide-title-lines span:nth-child(3) { width: 65%; }
+.presentation-slide:not([hidden]) .slide-title-lines span { animation: slide-title-line-grow 350ms ease-out both; }
+.presentation-slide:not([hidden]) .slide-title-lines span:nth-child(2) { animation-delay: 60ms; }
+.presentation-slide:not([hidden]) .slide-title-lines span:nth-child(3) { animation-delay: 120ms; }
+@keyframes slide-title-line-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .presentation-slide:not([hidden]) .slide-title-lines span { animation: none; }
+}
 .slide-body { color: var(--muted); font-size: var(--slide-text-size); line-height: 1.55; }
 .slide-body ul { display: grid; gap: .8em; margin: 0; padding-left: 1.2em; }
 .slide-body li::marker { color: var(--accent); }
