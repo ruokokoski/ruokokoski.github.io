@@ -36,6 +36,9 @@
 .slide-layout { display: grid; grid-template-columns: .85fr 1.15fr; gap: 3rem; align-items: center; min-height: 310px; }
 .slide-copy, .slide-media { min-width: 0; }
 .slide-heading { font-size: var(--slide-heading-size); font-weight: 500; letter-spacing: -.045em; margin: 0 0 .75rem; }
+.closing-slide .slide-content { display: flex; align-items: center; justify-content: center; min-height: 390px; text-align: center; }
+.closing-slide .slide-heading { margin: 0; }
+.presentation[data-current-slide="thank-you"] .slide-footer { display: none; }
 .slide-placeholder-text { color: var(--muted); font-size: var(--slide-text-size); }
 .slide-title-lines { display: grid; gap: calc(var(--slide-heading-size) * .08); width: calc(var(--slide-heading-size) * 3.7); margin-bottom: calc(var(--slide-heading-size) * .4); flex: 0 0 auto; }
 .slide-title-lines span { display: block; height: calc(var(--slide-heading-size) * .05); border-radius: 1em; background: #8ed2bc; }

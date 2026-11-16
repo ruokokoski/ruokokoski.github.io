@@ -24,7 +24,7 @@
     - Chemical reactions convert nutrients into other substances.
     - Metabolism provides energy, materials for cell growth, and other useful products.
     - Metabolic flux describes how fast each reaction proceeds.
-  image: /pics/fluxformer/microbial-metabolism.png
+  image: /pics/fluxformer/microbial-metabolism-no-halo.png
   alt: Nutrients enter a microbial cell and pass through connected metabolic reactions that generate ATP, biomass precursors, and secreted metabolites.
   notes: |
     We can think of microorganisms as small chemical factories. Nutrients enter the cell and pass through connected biochemical reactions, where substances are converted into other substances. The product of one reaction can become the starting material for another, forming metabolic pathways. These reactions produce energy and the building blocks needed for growth, as well as compounds that can be released from the cell. The rate of each reaction is called its metabolic flux. Together, these fluxes describe how nutrients flow through the cell's metabolic network.
@@ -246,3 +246,6 @@
     We are also developing an AI-agent workflow that automatically searches scientific literature to improve the biological realism of simulated nutrient conditions. For example, if a sampled medium contains a compound known to inhibit a particular metabolic reaction, that information could be used to adjust the simulation constraints.
 
     Ultimately, we want to use these more general surrogates to identify which microorganisms are best suited to different industrial and agricultural side streams, and under which cultivation conditions they could produce valuable products efficiently.
+- id: thank-you
+  layout: closing
+  title: Thank you

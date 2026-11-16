@@ -29,7 +29,7 @@
 
     <div class="presentation-stage" data-presentation-stage>
       {% for slide in slides %}
-        <section id="slide-{{ slide.id }}" class="presentation-slide{% if slide.layout == 'title' %} title-slide{% elsif slide.layout == 'wide' %} wide-slide{% elsif slide.layout == 'stats' %} stats-slide{% elsif slide.layout == 'figure' %} figure-slide{% elsif slide.layout == 'table' %} table-slide{% elsif slide.layout == 'text' %} text-slide{% else %} split-slide{% endif %}" data-slide="{{ slide.id }}" role="group" aria-roledescription="slide" aria-label="{{ forloop.index }} of {{ slides.size }}: {{ slide.title | escape }}" tabindex="-1">
+        <section id="slide-{{ slide.id }}" class="presentation-slide{% if slide.layout == 'title' %} title-slide{% elsif slide.layout == 'closing' %} closing-slide{% elsif slide.layout == 'wide' %} wide-slide{% elsif slide.layout == 'stats' %} stats-slide{% elsif slide.layout == 'figure' %} figure-slide{% elsif slide.layout == 'table' %} table-slide{% elsif slide.layout == 'text' %} text-slide{% else %} split-slide{% endif %}" data-slide="{{ slide.id }}" role="group" aria-roledescription="slide" aria-label="{{ forloop.index }} of {{ slides.size }}: {{ slide.title | escape }}" tabindex="-1">
           <div class="slide-content">
           {% if slide.layout == 'title' %}
           <div class="slide-title-content">
@@ -40,6 +40,8 @@
               <div><p class="slide-author">{{ slide.author | escape }}</p><p class="slide-affiliation">{{ slide.affiliation | escape }}</p></div>
             </div>
           </div>
+          {% elsif slide.layout == 'closing' %}
+          <h3 class="slide-heading">{{ slide.title | escape }}</h3>
           {% else %}
           <p class="eyebrow slide-kicker">Slide {% if forloop.index < 10 %}0{% endif %}{{ forloop.index }} / {% if slides.size < 10 %}0{% endif %}{{ slides.size }}</p>
           <h3 class="slide-heading">{{ slide.title | escape }}</h3>
