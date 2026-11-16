@@ -42,6 +42,17 @@ class PublishedDataTests(unittest.TestCase):
                     self.assertTrue(all(len(row) == 95 for head in layer["operations"]["attention"] for row in head))
                     self.assertEqual(packager.digest(self.public / filename), sample_meta["files_sha256"][filename])
 
+    def test_learned_projection_parameters_are_lossless(self):
+        for i, entry in enumerate(self.meta["projection_parameters"]):
+            published = packager.read(self.public / entry["file"])
+            prefix = f"layers.{i}.attention_block"
+            for key, source in [("weight", "mha.in_proj_weight"), ("bias", "mha.in_proj_bias"),
+                                ("norm_weight", "layer_norm.weight"), ("norm_bias", "layer_norm.bias")]:
+                self.assertEqual(published[key], self.common["parameters"][f"{prefix}.{source}"]["data"])
+            self.assertEqual(published["eps"], self.common["model"]["layer_settings"][i]["attention_norm_eps"])
+            self.assertEqual(published["index"], i)
+            self.assertEqual(packager.digest(self.public / entry["file"]), entry["sha256"])
+
     def test_all_overview_bounds_targets_and_layer_states_are_exact(self):
         for sample_meta, original_meta in zip(self.meta["samples"], self.original_manifest["examples"]):
             original = packager.read(self.source / original_meta["file"])

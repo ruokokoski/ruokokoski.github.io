@@ -22,7 +22,7 @@ function check(value, message) { assert.ok(value, message); assertions++; }
 const busy = page => page.waitForFunction(() => document.getElementById("ff-stage").getAttribute("aria-busy") === "false");
 async function step(page, index) {
   await page.locator(`[data-step="${index}"]`).click();
-  await page.waitForFunction(i => document.getElementById("ff-step-label").textContent === `Step ${i + 1} of 6`, index);
+  await page.waitForFunction(i => document.getElementById("ff-step-label").textContent === `Step ${i + 1} of 7`, index);
   await busy(page);
   check(await page.locator(`[data-step="${index}"]`).getAttribute("aria-current") === "step", "current architecture component is identified");
 }
@@ -35,6 +35,24 @@ async function values(locator) {
 }
 async function fits(page, label) {
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `no page overflow: ${label}`);
+}
+
+async function checkProjection(page, expected, parameters, kind, receiver, head, feature) {
+  const diagram = page.locator(".ff-projection-matrix");
+  const output = head * 16 + feature;
+  const offset = { query: 0, key: 128, value: 256 }[kind];
+  check(await diagram.getAttribute("data-output") === String(output) &&
+        await diagram.getAttribute("data-projection") === kind &&
+        await diagram.getAttribute("data-layer") === String(expected.index), "projection diagram follows kind, head, feature, and layer");
+  check((await values(diagram.locator(".ff-projection-result .ff-number")))[0] === expected.operations[kind][head][receiver][feature], "projection output is the exact recorded PyTorch value");
+  const normalized = expected.operations.attention_norm[receiver];
+  const weights = parameters.weight[offset + output];
+  for (const [type, reference] of [["normalized", normalized], ["weights", weights], ["products", normalized.map((value, i) => value * weights[i])]]) {
+    const actual = await diagram.locator(`[data-kind="${type}"]`).evaluateAll(cells => cells.map(cell => Number(cell.dataset.value)));
+    check(JSON.stringify(actual) === JSON.stringify(reference), `projection retains all 128 ${type} coefficients in order`);
+  }
+  const rows = await values(diagram.locator('[data-key="projection-terms"] tbody td .ff-number'));
+  check(rows[1] === parameters.bias[offset + output] && rows[3] === expected.operations[kind][head][receiver][feature], "bias and recorded projection result follow the selected full feature");
 }
 
 async function checkMatrixDiagram(page, expected, receiver, source, head) {
@@ -99,6 +117,19 @@ async function clickInitialMatrix(page, matrix, receiver, feature = 0) {
   await busy(page);
 }
 
+async function clickProjectionMatrix(page, kind, row, column) {
+  const svg = page.locator(`[data-projection-matrix="${kind}"]`);
+  await svg.scrollIntoViewIfNeeded();
+  const point = await svg.evaluate((element, input) => {
+    const local = new DOMPoint(25 + (input.column + .5) / 128 * 130,
+      10 + (input.row + .5) / (input.kind === "weights" ? 128 : 95) * 130);
+    const screen = local.matrixTransform(element.getScreenCTM());
+    return { x: screen.x, y: screen.y };
+  }, { kind, row, column });
+  await page.mouse.click(point.x, point.y);
+  await busy(page);
+}
+
 for (const engine of ["chromium", "webkit"]) {
   const browser = await driver[engine].launch({ headless: true });
   try {
@@ -158,6 +189,66 @@ for (const engine of ["chromium", "webkit"]) {
     await page.locator(".ff-inspection").screenshot({ path: `${screenshots}/${engine}-selected-vector.png` });
 
     await step(page, 1);
+    const projectionLayer = await json(sample(722).layers[0]);
+    const projectionParameters = await json(meta.projection_parameters[0].file);
+    check(!(await page.locator('[data-key="projection-terms"]').getAttribute("open")), "weighted-sum details are initially collapsed");
+    check(await page.locator("#ff-head-field").isVisible() && await page.locator("#ff-layer-field").isVisible(), "projection uses contextual head and layer selectors");
+    await page.locator('[data-key="projection-terms"] > summary').click();
+    for (const kind of ["query", "key", "value"]) {
+      await page.locator(`button[data-projection="${kind}"]`).click();
+      await busy(page);
+      await checkProjection(page, projectionLayer, projectionParameters, kind, 12, 0, 0);
+    }
+    await clickProjectionMatrix(page, "normalized", 27, 12);
+    check(await page.locator("#ff-reaction").inputValue() === "27" && await page.locator("#ff-projection-input").inputValue() === "12", "clicking Z selects the reaction and input feature");
+    await checkProjection(page, projectionLayer, projectionParameters, "value", 27, 0, 0);
+    await clickProjectionMatrix(page, "weights", 88, 45);
+    check(await page.locator("#ff-projection-input").inputValue() === "88" && await page.locator("#ff-head").inputValue() === "2" && await page.locator("#ff-projection-feature").inputValue() === "13", "clicking weights maps the input row and full output column to the correct head and local feature");
+    await checkProjection(page, projectionLayer, projectionParameters, "value", 27, 2, 13);
+    await clickProjectionMatrix(page, "projected", 94, 127);
+    check(await page.locator("#ff-reaction").inputValue() === "94" && await page.locator("#ff-head").inputValue() === "7" && await page.locator("#ff-projection-feature").inputValue() === "15", "clicking the final projected cell selects reaction 94 and head 8 feature 15");
+    await checkProjection(page, projectionLayer, projectionParameters, "value", 94, 7, 15);
+    for (const [kind, feature] of [["normalized", 5], ["weights", 77], ["products", 127]]) {
+      await page.locator(`.ff-projection-cells [data-kind="${kind}"][data-feature="${feature}"]`).click();
+      await busy(page);
+      check(await page.locator("#ff-projection-input").inputValue() === String(feature) && await page.locator(`.ff-projection-cells .is-active[data-feature="${feature}"]`).count() === 3, `clicking ${kind} synchronizes all three strips and the input selector`);
+      const term = await values(page.locator(".ff-projection-term .ff-number"));
+      const input = projectionLayer.operations.attention_norm[94][feature];
+      const weight = projectionParameters.weight[256 + 127][feature];
+      check(JSON.stringify(term) === JSON.stringify([input, weight, input * weight]), "the visible selected term matches the original normalized input and trained weight");
+    }
+    await change(page, "reaction", 12);
+    await change(page, "head", 0);
+    await page.locator("#ff-projection-feature").fill("15");
+    await page.locator("#ff-projection-feature").press("Tab");
+    await busy(page);
+    await page.locator('[data-select-head="7"]').focus();
+    await page.keyboard.press("Enter");
+    await busy(page);
+    check(await page.locator("#ff-head").inputValue() === "7", "head-group selection updates the shared head selector");
+    check(await page.evaluate(() => document.activeElement.matches('[data-select-head="7"]')), "head-group selection retains keyboard focus");
+    await checkProjection(page, projectionLayer, projectionParameters, "value", 12, 7, 15);
+    await page.locator("#ff-projection-input").fill("127");
+    await page.locator("#ff-projection-input").press("Tab");
+    await busy(page);
+    check(await page.locator('.ff-projection-cells .is-active[data-feature="127"]').count() === 3, "input-feature selection highlights the aligned input, weight, and product");
+    await page.locator("#ff-projection-input").fill("128");
+    await page.locator("#ff-projection-input").press("Tab");
+    check(await page.locator("#ff-projection-input").inputValue() === "127", "projection input indices stay within 128 features");
+    await change(page, "reaction", 94);
+    await checkProjection(page, projectionLayer, projectionParameters, "value", 94, 7, 15);
+    await change(page, "sample", 63);
+    await checkProjection(page, projectionLayer, projectionParameters, "value", 94, 7, 15);
+    await change(page, "layer", 2);
+    await checkProjection(page, await json(sample(63).layers[2]), await json(meta.projection_parameters[2].file), "value", 94, 7, 15);
+    await change(page, "sample", 722);
+    await change(page, "reaction", 12);
+    await change(page, "layer", 0);
+    await change(page, "head", 0);
+    await page.locator('[data-key="projection-terms"] > summary').click();
+    await page.screenshot({ path: `${screenshots}/${engine}-projections.png`, fullPage: true });
+
+    await step(page, 2);
     check(await page.locator(".ff-attention-row").count() === 5, "attention shows five sources");
     const firstLayer = await json(sample(722).layers[0]);
     const firstSource = Number(await page.locator(".ff-attention-row.is-selected").getAttribute("data-source"));
@@ -195,7 +286,7 @@ for (const engine of ["chromium", "webkit"]) {
     await page.screenshot({ path: `${screenshots}/${engine}-attention.png`, fullPage: true });
     await page.locator(".ff-matrix-walkthrough").screenshot({ path: `${screenshots}/${engine}-matrix-diagram.png` });
 
-    await step(page, 2);
+    await step(page, 3);
     const layer = await json(sample(870).layers[1]);
     const scalarNumbers = await values(page.locator(".ff-residual .ff-number"));
     check(scalarNumbers[0] === layer.input_c[12][0] && scalarNumbers[2] === layer.operations.scalar_residual[12][0], "scalar residual uses exact recorded values");
@@ -229,7 +320,7 @@ for (const engine of ["chromium", "webkit"]) {
     await busy(page);
     check((await values(page.locator(".ff-residual .ff-number")))[2] === layer.operations.embedding_residual[12][127], "embedding feature 127 is inspectable");
 
-    await step(page, 3);
+    await step(page, 4);
     check((await values(page.locator(".ff-residual .ff-number")))[2] === layer.operations.output_c[12][0], "feed-forward residual uses exact output");
     await page.locator('[data-key="hidden"] > summary').click();
     await page.locator("#ff-hidden").fill("639");
@@ -242,13 +333,13 @@ for (const engine of ["chromium", "webkit"]) {
     check(await page.locator("#ff-hidden").inputValue() === "639", "invalid feature indices do not alter data");
     await page.screenshot({ path: `${screenshots}/${engine}-feedforward.png`, fullPage: true });
 
-    await step(page, 4);
+    await step(page, 5);
     const overview870 = await json(sample(870).overview);
     check(JSON.stringify(await values(page.locator(".ff-state-list .ff-number"))) === JSON.stringify([overview870.initial_c[12], ...overview870.states.map(state => state[12])]), "all four trajectory states are exact");
     await page.goBack();
     await busy(page);
-    check((await page.locator("#ff-step-label").textContent()).includes("Step 4"), "browser Back restores previous stage");
-    await step(page, 5);
+    check((await page.locator("#ff-step-label").textContent()).includes("Step 5"), "browser Back restores previous stage");
+    await step(page, 6);
     const resultValues = await values(page.locator(".ff-result-values .ff-number"));
     check(resultValues[0] === overview870.states[2][12] && resultValues[1] === overview870.targets[12], "final prediction and matching target are exact");
     check(await page.locator("#ff-next").isDisabled(), "last stage has no dead next action");
@@ -269,7 +360,7 @@ for (const engine of ["chromium", "webkit"]) {
 
     for (const width of [1024, 768, 390, 320]) {
       await page.setViewportSize({ width, height: 844 });
-      for (let stage = 0; stage < 6; stage++) {
+      for (let stage = 0; stage < 7; stage++) {
         await step(page, stage);
         await fits(page, `${engine}, ${width}px, stage ${stage}`);
         if (stage === 0) {
@@ -278,11 +369,22 @@ for (const engine of ["chromium", "webkit"]) {
           check(await page.locator(".ff-initial-matrices").evaluate(chart => chart.scrollWidth <= chart.clientWidth), `X/c matrix overview fits at ${width}px`);
           check(await page.locator(".ff-initial-c-cell").count() === 95, `all 95 scalar rows remain represented at ${width}px`);
         }
-        if (stage === 1) {
+        if (stage === 2) {
           check(await page.locator(".ff-matrix-product").evaluate(chart => chart.scrollWidth <= chart.clientWidth), `linked matrices fit at ${width}px`);
           check(await page.locator(".ff-weight-cell").count() === 95, `all 95 softmax weights remain represented at ${width}px`);
         }
-        if (stage === 2) {
+        if (stage === 1) {
+          check(await page.locator(".ff-projection-matrix .ff-matrix-product").evaluate(chart => chart.scrollWidth <= chart.clientWidth), `projection matrices fit at ${width}px`);
+          check(await page.locator(".ff-head-groups button").count() === 8, `all eight head groups remain accessible at ${width}px`);
+          await clickProjectionMatrix(page, "normalized", 0, 127);
+          check(await page.locator("#ff-reaction").inputValue() === "0" && await page.locator("#ff-projection-input").inputValue() === "127", `Z click coordinates remain correct at ${width}px`);
+          await clickProjectionMatrix(page, "weights", 0, 16);
+          check(await page.locator("#ff-head").inputValue() === "1" && await page.locator("#ff-projection-feature").inputValue() === "0", `weight selection crosses the head boundary at ${width}px`);
+          await clickProjectionMatrix(page, "projected", 94, 127);
+          check(await page.locator("#ff-reaction").inputValue() === "94" && await page.locator("#ff-head").inputValue() === "7", `projected-cell selection works at ${width}px`);
+          await page.screenshot({ path: `${screenshots}/${engine}-projections-${width}.png`, fullPage: true });
+        }
+        if (stage === 3) {
           check(await page.locator(".ff-value-matrix .ff-matrix-product").evaluate(chart => chart.scrollWidth <= chart.clientWidth), `A × V matrices fit at ${width}px`);
           check(await page.locator(".ff-value-cell").count() === 285, `all three 95-source strips remain complete at ${width}px`);
         }
@@ -294,7 +396,7 @@ for (const engine of ["chromium", "webkit"]) {
     const lightColors = await page.locator(".ff-vector-full").evaluate(chart => ["negative", "positive"].map(sign => getComputedStyle(chart.querySelector(`.${sign} i`)).backgroundColor.match(/\d+/g).map(Number)));
     check(lightColors[0][2] > lightColors[0][0] && lightColors[1][0] > lightColors[1][2], "blue/red signs remain distinct in light mode");
     await page.screenshot({ path: `${screenshots}/${engine}-mobile-vector-light.png`, fullPage: true });
-    await step(page, 1);
+    await step(page, 2);
     await page.screenshot({ path: `${screenshots}/${engine}-mobile-light.png`, fullPage: true });
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.screenshot({ path: `${screenshots}/${engine}-desktop-light.png`, fullPage: true });
@@ -310,7 +412,7 @@ try {
   const page = await context.newPage();
   page.on("pageerror", error => errors.push(error.message));
   let failManifest = true, failLayer = true;
-  await page.route("**/data/fluxformer/manifest.json", route => failManifest ? route.fulfill({ status: 503, body: "Unavailable" }) : route.continue());
+  await page.route("**/data/fluxformer/manifest.json*", route => failManifest ? route.fulfill({ status: 503, body: "Unavailable" }) : route.continue());
   await page.goto(`${base}/fluxformer/`);
   await page.waitForSelector("#ff-retry:not([hidden])");
   check((await page.locator("#ff-status").textContent()).includes("503"), "manifest failure is explained");
@@ -318,7 +420,7 @@ try {
   await page.locator("#ff-retry").click();
   await page.waitForSelector(".ff-initial-matrices");
   await page.route("**/sample-000722-layer-0.json.gz", route => failLayer ? route.fulfill({ status: 503, body: "Unavailable" }) : route.continue());
-  await step(page, 1);
+  await step(page, 2);
   check((await page.locator(".ff-notice").innerText()).includes("503"), "layer failure is explained");
   failLayer = false;
   await page.locator("[data-reload]").click();
@@ -338,16 +440,44 @@ try {
   while (!delayedResponse) await new Promise(resolve => setTimeout(resolve, 50));
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   check((await page.locator("#ff-condition-note").textContent()).startsWith("Row 722"), "late old-sample response cannot replace the current condition");
+  let failProjection = true;
+  await page.route("**/projection-layer-0.json.gz", route => failProjection ? route.fulfill({ status: 503, body: "Unavailable" }) : route.continue());
+  await step(page, 1);
+  check((await page.locator(".ff-notice").innerText()).includes("503"), "learned projection download failure is explained");
+  failProjection = false;
+  await page.locator("[data-reload]").click();
+  await page.waitForSelector(".ff-projection-matrix");
+  check(await page.locator(".ff-projection-result").count() === 1, "retry loads the recorded projection and actual parameters");
   await context.close();
+
+  const cached = await browser.newContext();
+  const cachedPage = await cached.newPage();
+  const cacheRequests = [];
+  cachedPage.on("pageerror", error => errors.push(error.message));
+  cachedPage.on("request", request => cacheRequests.push(request.url()));
+  // Simulate incompatible old responses at the formerly unversioned URLs.
+  await cachedPage.route("**/js/fluxformer-data.js*", route => new URL(route.request().url()).search
+    ? route.continue() : route.fulfill({ contentType: "text/javascript", body: "export const steps = [];" }));
+  await cachedPage.route("**/data/fluxformer/manifest.json*", route => new URL(route.request().url()).search
+    ? route.continue() : route.fulfill({ contentType: "application/json", body: "{}" }));
+  await cachedPage.goto(`${base}/fluxformer/#projections`);
+  await cachedPage.waitForSelector(".ff-projection-result");
+  const entry = new URL(cacheRequests.find(url => new URL(url).pathname.endsWith("/js/fluxformer.js")));
+  for (const path of ["/js/fluxformer-data.js", "/data/fluxformer/manifest.json"]) {
+    const request = new URL(cacheRequests.find(url => new URL(url).pathname.endsWith(path)));
+    check(entry.searchParams.has("v") && request.search === entry.search, `${path} uses the entry script's build revision to avoid stale cached data`);
+  }
+  check(await cachedPage.locator("#ff-step-label").textContent() === "Step 2 of 7", "incompatible old helper and manifest cannot hide the new walkthrough");
+  await cached.close();
 
   const limited = await browser.newContext();
   await limited.addInitScript(() => { globalThis.DecompressionStream = undefined; });
   const limitedPage = await limited.newPage();
   await limitedPage.goto(`${base}/fluxformer/#predictions`);
   await limitedPage.waitForSelector(".ff-result-values");
-  await step(limitedPage, 1);
+  await step(limitedPage, 2);
   check((await limitedPage.locator(".ff-notice").innerText()).includes("decompression support"), "older browsers retain a useful fallback");
-  await step(limitedPage, 5);
+  await step(limitedPage, 6);
   check(await limitedPage.locator(".ff-result-values").count() === 1, "final outputs remain available without decompression");
   await limited.close();
 

@@ -1,4 +1,7 @@
-import { TraceStore, steps, format, topSources, softmaxEvidence, scalarEvidence, trajectory, attentionPairEvidence, valueMixEvidence } from "./fluxformer-data.js";
+// Keep imported code on the same build revision as this Jekyll-versioned entry.
+const buildQuery = new URL(import.meta.url).search;
+const helperURL = new URL(`./fluxformer-data.js${buildQuery}`, import.meta.url);
+const { TraceStore, steps, format, topSources, softmaxEvidence, scalarEvidence, trajectory, attentionPairEvidence, valueMixEvidence, projectionEvidence } = await import(helperURL.href);
 
 const root = document.getElementById("fluxformer");
 if (root) start();
@@ -10,12 +13,13 @@ function start() {
   const number = value => `<span class="ff-number" title="${exact(value)}">${format(value)}</span>`;
   const percent = value => `${(value * 100).toFixed(2)}%`;
   const state = { sample: 722, reaction: 12, layer: 0, head: 0, source: null, feature: 0, hidden: 0,
-    nutrient: 0, pairFeature: 0, valueFeature: 0, channel: "scalar", step: Math.max(0, steps.indexOf(location.hash.slice(1))), search: "", page: 0 };
-  let store, meta, overview, layer, revision = 0;
-  const titles = ["Start with a nutrient condition", "Compare one query with all 95 keys", "Use attention to update both channels",
+    nutrient: 0, projection: "query", projectionFeature: 0, projectionInput: 0, pairFeature: 0, valueFeature: 0, channel: "scalar", step: Math.max(0, steps.indexOf(location.hash.slice(1))), search: "", page: 0 };
+  let store, meta, overview, layer, parameters, revision = 0;
+  const titles = ["Start with a nutrient condition", "Turn embeddings into Q, K, and V", "Compare one query with all 95 keys", "Use attention to update both channels",
     "Let the two channels interact", "Refine the states across three layers", "Read the final flux predictions"];
   const descriptions = [
     "The 95 reaction vectors form an embedding matrix X with 128 features per row. Each reaction also has a scalar c. Nutrient bounds initialize c at their matching tokens; the other scalars start at zero.",
+    "First normalize each reaction’s embedding. Three separate learned linear maps then produce queries Q (what to look for), keys K (what to match), and values V (what to pass along). These are learned numerical roles, not biological labels.",
     "Learned projections turn normalized embeddings into queries Q and keys K. The selected receiving reaction’s query is compared with every token’s key, including its own.",
     "The same attention matrices mix embedding values and scalar values. Each path then adds its input back through a residual connection.",
     "The feed-forward network joins each row of X with its scalar c, transforms them together, and adds a residual. This is where nutrient context can change the reaction embeddings.",
@@ -49,7 +53,9 @@ function start() {
     $("retry").hidden = true;
     $("status").hidden = false;
     $("status").textContent = "Loading verified conditions…";
-    store = new TraceStore(new URL(root.dataset.manifest, location.href));
+    const manifestURL = new URL(root.dataset.manifest, location.href);
+    manifestURL.search = buildQuery;
+    store = new TraceStore(manifestURL);
     try {
       meta = await store.metadata();
       if (!meta.samples.some(sample => sample.row === state.sample)) state.sample = meta.samples[0].row;
@@ -102,7 +108,7 @@ function start() {
     const current = reaction(state.reaction);
     return `${initialMatrices()}
       <section class="ff-inspection" aria-labelledby="ff-inspection-title">
-        <p class="ff-inspection-label">Selected reaction · followed through all six steps</p>
+        <p class="ff-inspection-label">Selected reaction · followed through all seven steps</p>
         <header><div><h3 id="ff-inspection-title">${escape(name(state.reaction))}</h3><code>${escape(current.reaction_id)}</code></div>
           <div class="ff-initial-scalar"><span>Initial scalar c</span><strong class="ff-c">${number(overview.initial_c[state.reaction])}</strong></div></header>
         <div class="ff-inspection-embedding"><span class="ff-x">Row ${state.reaction} of X · all 128 learned features</span>${vectorLegend}${valuesPreview(meta.initial_x[state.reaction], 128)}<span class="ff-vector-order">Features 0–127, ordered left to right, then top to bottom. The outlined feature is ${state.feature}. Bar height shows magnitude relative to this vector’s largest feature.</span></div>
@@ -117,6 +123,42 @@ function start() {
         <label class="ff-field" for="ff-nutrient"><span>Nutrient input</span><select id="ff-nutrient">${meta.inputs.map((input, i) => `<option value="${i}"${i === state.nutrient ? " selected" : ""}>${escape(input.exchange_id)}</option>`).join("")}</select></label>
         ${rowTable(["Recorded quantity", "Value"], [["Signed uptake lower bound", number(overview.constraints[state.nutrient])], ["Initial scalar at token " + nutrient.token_index, number(overview.initial_c[nutrient.token_index])], ["Simulation target flux", number(overview.targets[nutrient.token_index])]])}
         <p>Bound ${escape(nutrient.exchange_id)} maps to <code>${escape(reaction(nutrient.token_index).token)}</code>. The target is the simulator’s resulting flux, which can differ from the bound. Units: mmol gDW⁻¹ h⁻¹.</p>`)}`;
+  }
+
+  function projectionsView() {
+    const { reaction: r, head: h, projection: kind, projectionFeature: f, projectionInput: k } = state;
+    const symbol = { query: "Q", key: "K", value: "V" }[kind];
+    const e = projectionEvidence(layer, parameters, kind, r, h, f);
+    const p = e.outputFeature;
+    const matrix = (kind, label, shape, row, column, caption) => `<div class="ff-matrix-card"><h3>${label}</h3><span>${shape}</span><svg data-projection-matrix="${kind}" viewBox="0 0 180 150" role="img" aria-describedby="ff-projection-help" aria-label="${escape(label.replace(/<[^>]*>/g, ""))}: ${escape(caption.replace(/<[^>]*>/g, ""))}"><rect class="ff-matrix-body" x="25" y="10" width="130" height="130"/><path class="ff-matrix-guide" d="M25 36H155 M25 62H155 M25 88H155 M25 114H155 M51 10V140 M77 10V140 M103 10V140 M129 10V140"/><rect class="ff-score-row" x="25" y="${10 + row * 130 - 2}" width="130" height="4"/><path class="ff-key-line" d="M${25 + column * 130} 10V140"/><circle class="ff-score-cell" cx="${25 + column * 130}" cy="${10 + row * 130}" r="4"/></svg><p>${caption}</p></div>`;
+    const strip = (values, label, type) => {
+      const maximum = Math.max(...values.map(Math.abs)) || 1;
+      return `<div class="ff-projection-strip"><span>${label}</span><div class="ff-projection-cells" role="img" aria-label="${escape(label)}: all 128 input features">${values.map((value, i) => `<span class="ff-value-cell ${value < 0 ? "negative" : value > 0 ? "positive" : "zero"}${i === k ? " is-active" : ""}" data-kind="${type}" data-feature="${i}" data-value="${exact(value)}" title="Input feature ${i}: ${exact(value)}" style="--strength:${10 + Math.abs(value) / maximum * 90}%"></span>`).join("")}</div></div>`;
+    };
+    const x = layer.input_x[r];
+    const mean = x.reduce((sum, v) => sum + v, 0) / 128;
+    const variance = x.reduce((sum, v) => sum + (v - mean) ** 2, 0) / 128;
+    return `<div class="ff-channel-switch" role="group" aria-label="Projection to inspect">${[["query", "Q · Query"], ["key", "K · Key"], ["value", "V · Value"]].map(([key, label]) => `<button type="button" data-projection="${key}" aria-pressed="${key === kind}">${label}</button>`).join("")}</div>
+      <div class="ff-block-flow"><div><b>1. Normalize X</b><span>Across each row’s 128 features</span></div><span aria-hidden="true">→</span><div><b>2. Apply learned map</b><span>Separate weights and bias for ${symbol}</span></div><span aria-hidden="true">→</span><div><b>3. Split features</b><span>128 → 8 heads × 16 features</span></div></div>
+      <figure class="ff-matrix-walkthrough ff-projection-matrix" data-projection="${kind}" data-reaction="${r}" data-head="${h}" data-feature="${f}" data-output="${p}" data-layer="${state.layer}">
+        <figcaption><strong>One normalized row × one learned weight column</strong><span>Z = LayerNorm(X). The model applies ${symbol} = ZW<sub>${symbol}</sub>ᵀ + b<sub>${symbol}</sub> to all 95 reaction rows. Highlights show one output feature. Matrix shapes are schematic.</span></figcaption>
+        <div class="ff-value-controls">${featureField("projection-feature", "Output feature within selected head", f, 15)}${featureField("projection-input", "Input feature to inspect", k, 127)}</div>
+        <div class="ff-matrix-product">
+          ${matrix("normalized", "Normalized Z", "95 × 128", (r + .5) / 95, (k + .5) / 128, `Reaction <strong>${r}</strong> · input <strong>${k}</strong>`)}
+          <span class="ff-matrix-operator" aria-label="multiplied by">×</span>
+          ${matrix("weights", `Weights W<sub>${symbol}</sub>ᵀ`, "128 × 128", (k + .5) / 128, (p + .5) / 128, `Input <strong>${k}</strong> · output <strong>${p}</strong>`)}
+          <span class="ff-matrix-operator" aria-label="add bias to obtain">+ b <span class="ff-projection-arrow" aria-hidden="true">→</span></span>
+          ${matrix("projected", `Projected ${symbol}`, "95 × 128", (r + .5) / 95, (p + .5) / 128, `Cell <strong>[${r}, ${p}]</strong>`)}
+        </div>
+        <p class="ff-caption" id="ff-projection-help">Click Z to choose a reaction and input feature. Click the weights to choose an input and output feature, or ${symbol} to choose a reaction and output feature. Output selection automatically updates the head. The selectors offer precise keyboard control.</p>
+        <p class="ff-caption">Each output feature uses all 128 normalized input features. The same weights and bias are shared across all reaction rows. Q, K, and V each have their own learned map, with Z as their common input.</p>
+        <div class="ff-feature-product ff-projection-term"><span>Selected term · Z[${r}, ${k}] × W<sub>${symbol}</sub>ᵀ[${k}, ${p}]</span><div>${number(e.normalized[k])} × ${number(e.weights[k])} = <strong>${number(e.products[k])}</strong></div></div>
+        <div class="ff-residual ff-projection-result"><span class="ff-residual-label">Recorded ${symbol}[${r}, ${p}]</span><strong class="ff-x">${number(e.output)}</strong><small>Sum of 128 input × weight terms, plus learned bias ${number(e.bias)}</small></div>
+        ${detail("projection-terms", "Inspect the 128-feature weighted sum", `<p>The highlighted row and weight column are aligned below. Blue is negative; red is positive. Each strip uses its own magnitude scale.</p>${strip(e.normalized, "Normalized inputs Z", "normalized")}${strip(e.weights, `Learned weights for ${symbol}`, "weights")}${strip(e.products, "Input × weight", "products")}<div class="ff-strip-labels"><span>Input feature 0</span><span>Input feature 127</span></div><p class="ff-caption">Click any strip to inspect its input feature in the selected term above. All 128 products remain in the sum.</p>${rowTable(["Calculation", "Value"], [["Sum all 128 products", number(e.sum)], [`Learned bias b${symbol}[${p}]`, number(e.bias)], ["Reconstructed sum + bias", number(e.reconstructed)], ["Recorded PyTorch output", number(e.output)]])}<p>Explanatory arithmetic uses browser precision; the recorded float32 result is retained.</p>`)}
+      </figure>
+      <section class="ff-head-split"><h3>Split the 128 projected features into eight heads</h3><p class="ff-caption">This rearranges features without changing their values. Choose a head to follow its group of 16 features into Attention and Mix. Head labels start at 1; feature indices start at 0.</p><div class="ff-head-groups">${Array.from({ length: 8 }, (_, i) => `<button type="button" data-select-head="${i}" aria-pressed="${i === h}"><strong>Head ${i + 1}</strong><span>${i * 16}–${i * 16 + 15}</span></button>`).join("")}</div>${equation(`${symbol}[${r}, ${p}] → head ${h + 1}, feature ${f} = ${number(e.output)}`, `Full output feature ${p} = (${h + 1} − 1) × 16 + ${f}. Each head receives a 95 × 16 matrix. Attention compares Q with K; Mix combines V using the resulting weights.`)}</section>
+      ${detail("projection-norm", "How does LayerNorm form Z?", `<p>Each reaction row is centered using its mean and divided by √(variance + ε). A learned scale γ and offset β then adjust each feature. Variance is the mean squared deviation over all 128 features.</p>${equation(`Z[i, k] = γ[k] × (X[i, k] − mean) / √(variance + ε) + β[k]`)}<p>For input feature ${k} (chosen in the matrices or input-feature selector above):</p>${rowTable(["Quantity", "Value"], [[`Input X[${r}, ${k}]`, number(x[k])], ["Row mean", number(mean)], ["Row variance", number(variance)], ["ε", number(parameters.eps)], [`Learned scale γ[${k}]`, number(parameters.norm_weight[k])], [`Learned offset β[${k}]`, number(parameters.norm_bias[k])], [`Recorded Z[${r}, ${k}]`, number(e.normalized[k])]])}`)}
+      <aside class="ff-insight"><strong>${state.layer === 0 ? "Layer 1 projections are condition-independent" : "Updated embeddings carry the condition"}</strong><p>${state.layer === 0 ? "Q, K, and V depend on the learned initial embeddings. Nutrient bounds enter the separate scalar channel, so changing the condition leaves these first-layer projections unchanged." : "Earlier feed-forward blocks mixed nutrient scalars into embeddings. These updated embeddings can now produce condition-dependent Q, K, and V."}</p></aside>`;
   }
 
   function attentionDiagram(r, j, h) {
@@ -176,7 +218,7 @@ function start() {
         ? "Q and K come only from the learned initial embeddings. Changing the condition leaves these weights unchanged; the scalar values propagated through them still change."
         : "The preceding feed-forward block mixed nutrient scalars into embeddings. This layer compares those updated embeddings."}</p></aside>
       ${detail("attention", "How is this attention weight calculated?", `
-        <p>LayerNorm normalizes each reaction’s 128-feature embedding before learned projections form Q, K, and V. Each projection is split across eight heads, leaving 16 features per head. V carries the information mixed in Step 3.</p>
+        <p>LayerNorm normalizes each reaction’s 128-feature embedding before learned projections form Q, K, and V. Each projection is split across eight heads, leaving 16 features per head. V carries the information mixed in the Mix step.</p>
         <p>For this selected pair only, sum all 16 query–key products and divide by √16 = 4. The same query is also compared with the other 94 keys. Softmax then normalizes the complete row of 95 scaled scores, including this one.</p>
         ${rowTable(["Receiving embedding (first four features)", "Before LayerNorm", "After LayerNorm"], layer.input_x[r].slice(0, 4).map((value, i) => [i, number(value), number(o.attention_norm[r][i])]))}
         ${rowTable(["Feature", "Query Q", "Source key K", "Q × K"], terms.slice(0, 4))}
@@ -201,7 +243,7 @@ function start() {
       return `<div class="ff-value-strip"><span>${label}</span><div class="ff-weight-strip ff-value-strip-${kind}" role="img" aria-label="${escape(label.replace(/<[^>]*>/g, ""))}: all 95 sources">${values.map((value, i) => `<span class="ff-value-cell ${kind === "attention" ? "attention" : value < 0 ? "negative" : value > 0 ? "positive" : "zero"}${i === j ? " is-active" : ""}" data-source-index="${i}" data-value="${exact(value)}" title="Source ${i} (${escape(reaction(i).reaction_id)}): ${exact(value)}" style="--strength:${10 + Math.abs(value) / maximum * 90}%"></span>`).join("")}</div></div>`;
     };
     return `<figure class="ff-matrix-walkthrough ff-value-matrix" data-receiver="${r}" data-source="${j}" data-head="${h}" data-layer="${state.layer}" data-feature="${k}">
-      <figcaption><strong>Use attention weights to mix value vectors</strong><span>A is the softmax attention matrix from Step 2. V contains this head’s learned value projections. One output feature combines values from all 95 source reactions. Matrix shapes are schematic.</span></figcaption>
+      <figcaption><strong>Use attention weights to mix value vectors</strong><span>A is the softmax matrix from the Attention step. V contains this head’s learned value projections. One output feature combines values from all 95 source reactions. Matrix shapes are schematic.</span></figcaption>
       <div class="ff-value-controls"><label class="ff-field ff-matrix-source" for="ff-source"><span>Source reaction (value)</span><select id="ff-source" aria-describedby="ff-value-help">${reactionOptions(j)}</select></label>${featureField("value-feature", "Head output feature", k, 15)}</div>
       <p class="ff-caption" id="ff-value-help">Choose a source to inspect one contribution. Changing this selection does not remove the other 94 sources from the sum.</p>
       <div class="ff-matrix-product">
@@ -299,30 +341,33 @@ function start() {
 
   async function render({ keepDetails = false, focusTitle = false } = {}) {
     const version = ++revision;
+    const stage = steps[state.step];
     const open = keepDetails ? [...$("stage").querySelectorAll("details[open][data-key]")].map(d => d.dataset.key) : [];
     const active = document.activeElement;
     const restoreFocus = keepDetails && $("stage").contains(active) ? active.id : "";
     const buttonAttribute = keepDetails && $("stage").contains(active) ?
-      ["data-source", "data-reaction", "data-channel", "data-page"].find(attribute => active.hasAttribute(attribute)) : null;
+      ["data-source", "data-reaction", "data-channel", "data-page", "data-projection", "data-select-head"].find(attribute => active.hasAttribute(attribute)) : null;
     const restoreButton = buttonAttribute ? `[${buttonAttribute}="${active.getAttribute(buttonAttribute)}"]` : "";
     const caret = restoreFocus && active.type === "search" ? active.selectionStart : null;
     const sample = meta.samples.find(item => item.row === state.sample);
-    $("step-label").textContent = `Step ${state.step + 1} of 6`;
     $("stage-title").textContent = titles[state.step];
     $("stage-description").textContent = descriptions[state.step];
-    $("reaction-label").textContent = state.step === 1 ? "Receiving reaction (query)" : "Inspect reaction";
-    $("layer-field").hidden = ![1, 2, 3].includes(state.step);
-    $("head-field").hidden = ![1, 2].includes(state.step);
+    $("reaction-label").textContent = stage === "attention" ? "Receiving reaction (query)" : "Inspect reaction";
+    $("step-label").textContent = `Step ${state.step + 1} of ${steps.length}`;
+    $("layer-field").hidden = !["projections", "attention", "mix", "feedforward"].includes(stage);
+    $("head-field").hidden = !["projections", "attention", "mix"].includes(stage);
     $("previous").disabled = state.step === 0;
-    $("next").disabled = state.step === 5;
-    $("next").textContent = state.step === 5 ? "Walkthrough complete" : "Next →";
-    $("progress").textContent = `${state.step + 1} / 6`;
+    $("next").disabled = state.step === steps.length - 1;
+    $("next").textContent = state.step === steps.length - 1 ? "Walkthrough complete" : "Next →";
+    $("progress").textContent = `${state.step + 1} / ${steps.length}`;
     root.querySelectorAll("[data-step]").forEach(link => {
       if (Number(link.dataset.step) === state.step) link.setAttribute("aria-current", "step");
       else link.removeAttribute("aria-current");
     });
-    const needsLayer = [1, 2, 3].includes(state.step);
-    const alreadyLoaded = (!needsLayer || store.layers.has(`${sample.row}:${state.layer}`)) && store.overviews.has(sample.row);
+    const needsLayer = ["projections", "attention", "mix", "feedforward"].includes(stage);
+    const needsParameters = stage === "projections";
+    const alreadyLoaded = (!needsLayer || store.layers.has(`${sample.row}:${state.layer}`)) &&
+      (!needsParameters || store.projections.has(state.layer)) && store.overviews.has(sample.row);
     if (!alreadyLoaded) {
       $("stage").innerHTML = `<p class="ff-loading" role="status">Loading ${needsLayer ? `layer ${state.layer + 1}’s full calculation` : "condition"}…</p>`;
       $("condition-note").textContent = `Condition row ${sample.row}`;
@@ -331,12 +376,14 @@ function start() {
     try {
       const loadedOverview = await store.overview(sample);
       const loadedLayer = needsLayer ? await store.layer(sample, state.layer) : null;
+      const loadedParameters = needsParameters ? await store.projectionParameters(state.layer) : null;
       if (version !== revision) return;
       overview = loadedOverview;
       layer = loadedLayer;
+      parameters = loadedParameters;
       $("condition-note").textContent = `Row ${sample.row} · oxygen bound ${format(overview.constraints[18])} · inputs held fixed`;
       $("download").href = new URL(sample.overview, store.url).href;
-      $("stage").innerHTML = [initializeView, attentionView, mixView, feedforwardView, layersView, predictionsView][state.step]();
+      $("stage").innerHTML = [initializeView, projectionsView, attentionView, mixView, feedforwardView, layersView, predictionsView][state.step]();
       for (const key of open) {
         const element = $("stage").querySelector(`details[data-key="${key}"]`);
         if (element) element.open = true;
@@ -362,10 +409,46 @@ function start() {
   $("layer").addEventListener("change", () => { state.layer = Number($("layer").value); state.source = null; render(); });
   $("head").addEventListener("change", () => { state.head = Number($("head").value); state.source = null; render(); });
   $("previous").addEventListener("click", () => { if (state.step > 0) location.hash = steps[state.step - 1]; });
-  $("next").addEventListener("click", () => { if (state.step < 5) location.hash = steps[state.step + 1]; });
+  $("next").addEventListener("click", () => { if (state.step < steps.length - 1) location.hash = steps[state.step + 1]; });
   window.addEventListener("hashchange", () => {
     state.step = Math.max(0, steps.indexOf(location.hash.slice(1)));
     if (meta) render({ focusTitle: true });
+  });
+  // Pointer coordinates retain subpixel precision in the compact matrix plots.
+  $("stage").addEventListener("pointerup", event => {
+    if (event.button !== 0 || !event.isPrimary) return;
+    const projectionMatrix = event.target.closest("[data-projection-matrix]");
+    if (projectionMatrix) {
+      const transform = projectionMatrix.getScreenCTM();
+      if (!transform) return;
+      // WebKit rounds coordinates to CSS pixels; select at that pixel's center.
+      const offset = Number.isInteger(event.clientX) && Number.isInteger(event.clientY) ? .5 : 0;
+      const point = new DOMPoint(event.clientX + offset, event.clientY + offset).matrixTransform(transform.inverse());
+      if (point.x < 25 || point.x >= 155 || point.y < 10 || point.y >= 140) return;
+      const kind = projectionMatrix.dataset.projectionMatrix;
+      const column = Math.floor((point.x - 25) / 130 * 128);
+      const row = Math.floor((point.y - 10) / 130 * (kind === "weights" ? 128 : 95));
+      if (kind === "normalized") {
+        state.reaction = row;
+        state.projectionInput = column;
+      } else {
+        state.head = Math.floor(column / 16);
+        state.projectionFeature = column % 16;
+        if (kind === "weights") state.projectionInput = row;
+        else state.reaction = row;
+      }
+      $("reaction").value = state.reaction;
+      $("head").value = state.head;
+      state.source = null;
+      render({ keepDetails: true });
+      return;
+    }
+    const projectionCell = event.target.closest(".ff-projection-cells [data-feature]");
+    if (projectionCell) {
+      state.projectionInput = Number(projectionCell.dataset.feature);
+      render({ keepDetails: true });
+      return;
+    }
   });
   $("stage").addEventListener("click", event => {
     const matrix = event.target.closest("[data-initial-matrix]");
@@ -390,6 +473,12 @@ function start() {
       state.source = null;
     } else if (button.hasAttribute("data-source")) state.source = Number(button.dataset.source);
     else if (button.hasAttribute("data-channel")) state.channel = button.dataset.channel;
+    else if (button.hasAttribute("data-projection")) state.projection = button.dataset.projection;
+    else if (button.hasAttribute("data-select-head")) {
+      state.head = Number(button.dataset.selectHead);
+      $("head").value = state.head;
+      state.source = null;
+    }
     else if (button.hasAttribute("data-page")) state.page += Number(button.dataset.page);
     else if (!button.hasAttribute("data-reload")) return;
     render({ keepDetails: true });
@@ -398,9 +487,9 @@ function start() {
     const { id, value } = event.target;
     if (id === "ff-source") state.source = Number(value);
     else if (id === "ff-nutrient") state.nutrient = Number(value);
-    else if (id === "ff-feature" || id === "ff-hidden" || id === "ff-pair-feature" || id === "ff-value-feature") {
-      const field = id === "ff-feature" ? "feature" : id === "ff-hidden" ? "hidden" : id === "ff-pair-feature" ? "pairFeature" : "valueFeature";
-      const maximum = id === "ff-feature" ? 127 : id === "ff-hidden" ? 639 : 15;
+    else if (["ff-feature", "ff-hidden", "ff-pair-feature", "ff-value-feature", "ff-projection-input", "ff-projection-feature"].includes(id)) {
+      const field = { "ff-feature": "feature", "ff-hidden": "hidden", "ff-pair-feature": "pairFeature", "ff-value-feature": "valueFeature", "ff-projection-input": "projectionInput", "ff-projection-feature": "projectionFeature" }[id];
+      const maximum = ["ff-feature", "ff-projection-input"].includes(id) ? 127 : id === "ff-hidden" ? 639 : 15;
       if (!Number.isInteger(Number(value)) || Number(value) < 0 || Number(value) > maximum || value === "") {
         event.target.value = state[field];
         return;

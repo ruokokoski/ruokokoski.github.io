@@ -23,7 +23,16 @@ against the manifest, not against the current page URL. The original
 the actual checkpoint and test CSV; packaging the saved traces needs only the
 Python standard library.
 
-The six steps have stable fragment links: `#initialize`, `#attention`, `#mix`,
+The entry script, imported helper module, and manifest share Jekyll's build
+version query. This prevents cached helpers or an older manifest from being
+combined with newly added walkthrough steps.
+
+The imported data helper and manifest inherit the entry script's Jekyll build
+query (`?v=...`). This prevents an old cached helper from hiding the app after
+an update adds exports, and refreshes the manifest when new trace files are
+introduced. Sample and layer filenames continue to resolve against the manifest.
+
+The seven steps have stable fragment links: `#initialize`, `#projections`, `#attention`, `#mix`,
 `#feedforward`, `#layers`, and `#predictions`. Browser Back/Forward restores
 steps. Condition, reaction, layer, and head selections stay in page memory;
 they are not encoded in shareable fragment links.
@@ -58,7 +67,7 @@ semantics. The public layer document records the sample row and layer index.
 The initial manifest is approximately 290 KiB and each sample overview is
 approximately 24 KiB, before HTTP compression. A layer download is approximately
 4.3 MiB in gzip form; the whole public dataset is approximately 52 MiB. The
-large layers load only for attention, mixing, or feed-forward steps. At most
+large layers load only for projections, attention, mixing, or feed-forward steps. At most
 two layer promises/decoded results are cached; older entries are evicted.
 
 Layer downloads use native `DecompressionStream('gzip')`. The loader recognizes
@@ -87,7 +96,36 @@ entries start at zero. Attention's last axis enumerates source reactions;
 its row is the receiving/query token. The five-source chart retains original
 weights rather than renormalizing them. It explicitly describes neural
 information mixing, not biochemical or causal connections.
-Step 2 explains all 95 query–key comparisons (including self-attention), the
+Step 2 forms Q, K, and V from the recorded normalized embeddings and actual
+learned parameters. Visitors choose one projection, reaction, layer, head, and
+head feature. The schematic shows `Z [95,128] × Wᵀ [128,128] + b` and highlights
+one output cell. An expandable inspector retains all 128 normalized inputs,
+coefficients, and products, with one selectable term, their sum, the bias, and
+the recorded float32 result. LayerNorm details expose the selected raw input,
+row mean/variance, epsilon, and learned scale/offset. Eight selectable head
+groups explain the unchanged-value reshape: output feature `head*16+feature`
+becomes one of 16 features in that head. Q, K, and V use separate maps applied
+to the same Z; these are neural roles rather than biological labels.
+
+The three projection matrices support direct pointer selection. Z selects a
+reaction row and normalized input feature; Wᵀ selects an input row and full
+output feature; the projected matrix selects a reaction and full output feature.
+The output column updates both the shared head selector and its local feature
+index. All three signed strips also select the input feature. Linked matrix
+highlights, native selectors, and the visible numerical product update together;
+the full 128-term sum and recorded result remain intact. Matrices stack below
+960px to keep pointer targets usable. Native inputs remain available for precise
+keyboard selection.
+
+The three `projection-layer-I.json.gz` files retain the original packed
+`in_proj_weight [384,128]`, `in_proj_bias [384]`, LayerNorm parameters, and epsilon.
+They load only in Form Q, K, V and are shared across samples. Each adds about
+446 KiB compressed. Their names and hashes are recorded in the public manifest.
+The Q/K/V row offsets are 0, 128, and 256; PyTorch's stored weight row becomes
+the corresponding column in the displayed transpose. Numerical tests cover
+every reaction and projected feature, all layers, and all four samples.
+
+Step 3 explains all 95 query–key comparisons (including self-attention), the
 16 features per head (128 ÷ 8), division by √16 = 4, and row-wise softmax
 across all 95 scores. The displayed pair is labeled as one entry in the row;
 the full pass produces eight 95 × 95 attention matrices.
@@ -103,7 +141,7 @@ existing tolerances. A strip retains all 95 recorded softmax weights in token
 order, with the selected source highlighted. None of these interactions reruns
 model inference or restricts the underlying reaction set.
 
-Step 3's embedding channel uses the same visual convention for
+Step 4's embedding channel uses the same visual convention for
 `A [95,95] × V [95,16] = head output [95,16]`. It highlights a receiving row,
 value-feature column, and output cell. Three aligned strips retain all 95
 attention weights, source values, and products for that feature. A source
@@ -183,13 +221,13 @@ and layer failures/retries, a delayed stale sample response, missing gzip
 support, and disabled JavaScript. Screenshots default to
 `/tmp/fluxformer-browser-screenshots/`.
 
-## Verified results (2026-11-10)
+## Verified results (2026-11-16)
 
-- All 12 Python tests pass: eight original PyTorch trace checks and four
+- All 13 Python tests pass: eight original PyTorch trace checks and five
   complete source-to-published-data checks.
-- All five JavaScript tests pass, covering four samples and three layers,
+- All six JavaScript tests pass, covering four samples and three layers,
   numerical explanation consistency, caching, retry, and loader compatibility.
-- All 467 browser assertions pass in Chromium and WebKit, including every
+- All 681 browser assertions pass in Chromium and WebKit, including every
   walkthrough stage at widths 320, 390, 768, 1024, and 1440px, both themes,
   keyboard focus, history, error recovery, and delayed-response protection.
   Initialization checks verify the X row and cell, all 95 c values, the 20/75
@@ -202,6 +240,14 @@ support, and disabled JavaScript. Screenshots default to
   A × V checks compare all 95 weights, values, and products, all 16 head-output
   features, source-selection invariance, and feature/head/layer/receiver changes
   with the original traces. All three source strips remain complete on mobile.
+  Projection checks verify all 128 inputs, learned coefficients and products,
+  recorded results for Q/K/V, head/feature mapping, reaction/layer/sample
+  changes, keyboard focus, feature bounds, and failed-download recovery.
+  Pointer checks cover all three projection matrices, full-output-to-head
+  mapping, linked input/weight/product strips, the selected numerical term,
+  and transformed coordinates at every responsive width.
+  A cache regression test supplies incompatible old responses at unversioned
+  helper/manifest URLs and verifies that the versioned walkthrough still loads.
 - Normal and `/preview`-prefixed Jekyll builds pass. The prefixed build includes
   trace assets, resolves the prefixed page/manifest/script URLs, and excludes
   the offline tools directory.

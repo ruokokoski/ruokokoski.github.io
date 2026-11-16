@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { TraceStore, format, topSources, scalarEvidence, softmaxEvidence, trajectory, attentionPairEvidence, valueMixEvidence } from "../../js/fluxformer-data.js";
+import { TraceStore, format, topSources, scalarEvidence, softmaxEvidence, trajectory, attentionPairEvidence, valueMixEvidence, projectionEvidence } from "../../js/fluxformer-data.js";
 
 const base = new URL("../../data/fluxformer/manifest.json", import.meta.url);
 const localFetch = async url => {
@@ -23,6 +23,23 @@ test("browser data helpers preserve all conditions, sources, heads, and scalar s
     }
     for (let i = 0; i < 3; i++) {
       const layer = await store.layer(sample, i);
+      const parameters = await store.projectionParameters(i);
+      // Every output feature: validates packed Q/K/V offsets and head mapping.
+      for (let r = 0; r < 95; r++) {
+        const row = layer.input_x[r];
+        const mean = row.reduce((sum, value) => sum + value, 0) / 128;
+        const variance = row.reduce((sum, value) => sum + (value - mean) ** 2, 0) / 128;
+        for (let k = 0; k < 128; k++) {
+          close(parameters.norm_weight[k] * (row[k] - mean) / Math.sqrt(variance + parameters.eps) + parameters.norm_bias[k], layer.operations.attention_norm[r][k]);
+        }
+        for (const kind of ["query", "key", "value"]) {
+          for (let head = 0; head < 8; head++) for (let feature = 0; feature < 16; feature++) {
+            const evidence = projectionEvidence(layer, parameters, kind, r, head, feature);
+            assert.equal(evidence.outputFeature, head * 16 + feature);
+            close(evidence.reconstructed, evidence.output);
+          }
+        }
+      }
       for (const r of [12, 27, 35, 94]) {
         close(layer.operations.output_c[r][0], overview.states[i][r]);
         for (const h of [0, 7]) {
@@ -61,6 +78,18 @@ test("browser data helpers preserve all conditions, sources, heads, and scalar s
       assert.ok(store.layers.size <= 2, "decoded layer cache stays bounded");
     }
   }
+});
+
+test("failed projection downloads can be retried and do not poison the cache", async () => {
+  let fail = true;
+  const store = new TraceStore(base, async url => {
+    if (String(url).includes("projection-layer-") && fail) return new Response("unavailable", { status: 503 });
+    return localFetch(url);
+  });
+  await assert.rejects(store.projectionParameters(0), /503/);
+  assert.equal(store.projections.size, 0);
+  fail = false;
+  assert.equal((await store.projectionParameters(0)).weight.length, 384);
 });
 
 test("failed layer downloads can be retried and do not leave failed cache entries", async () => {

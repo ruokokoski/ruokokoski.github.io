@@ -38,7 +38,7 @@
 .ff-trace-badge { font-size: .7rem; margin-left: auto; color: var(--muted); }
 .ff-trace-badge > span { color: var(--accent); margin-right: .3rem; }
 .ff-architecture { margin: .25rem 0 1.75rem; }
-.ff-architecture ol { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); list-style: none; padding: 0; margin: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.ff-architecture ol { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); list-style: none; padding: 0; margin: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
 .ff-architecture li { min-width: 0; }
 .ff-architecture li + li { border-left: 1px solid var(--border); }
 .ff-architecture a { display: flex; min-height: 105px; gap: .6rem; padding: 1.25rem .8rem; text-decoration: none; color: var(--muted); font-size: .825rem; line-height: 1.4; height: 100%; }
@@ -183,6 +183,20 @@
 .ff-value-cell.negative { background: color-mix(in srgb, var(--ff-negative) var(--strength), var(--background)); }
 .ff-value-cell.zero { background: var(--border); }
 .ff-value-cell.is-active { position: relative; z-index: 1; outline: 2px solid var(--ff-c); outline-offset: 1px; }
+.ff-projection-matrix { margin-top: 1.5rem; }
+.ff-projection-matrix [data-projection-matrix], .ff-projection-cells { cursor: crosshair; }
+.ff-projection-matrix .ff-matrix-card svg { max-width: 320px; }
+.ff-projection-arrow { display: inline-block; }
+.ff-projection-cells .ff-value-cell:hover { outline: 2px solid var(--text); position: relative; z-index: 2; }
+.ff-projection-strip { margin: 1rem 0; }
+.ff-projection-strip > span { display: block; color: var(--muted); font-size: .75rem; margin-bottom: .5rem; }
+.ff-projection-cells { display: grid; grid-template-columns: repeat(128, minmax(0, 1fr)); gap: 0; }
+.ff-head-split h3 { font-size: 1rem; font-weight: 500; }
+.ff-head-groups { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: .4rem; }
+.ff-head-groups button { min-width: 0; min-height: 56px; padding: .6rem .2rem; border: 1px solid var(--border); border-radius: 5px; background: var(--background); }
+.ff-head-groups button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.ff-head-groups strong, .ff-head-groups span { display: block; font-size: .7rem; font-weight: 500; }
+.ff-head-groups span { margin-top: .3rem; font-size: .65rem; color: var(--muted); }
 .ff-value-source-labels { margin-left: calc(85px + .75rem); }
 .ff-pair-score { display: block; width: 100%; }
 .ff-softmax-row { flex-basis: 100%; font: .8rem/1.8 var(--sans); }
@@ -279,6 +293,8 @@
 .ff-about p { line-height: 1.85; }
 
 @media (max-width: 960px) {
+  .ff-projection-matrix .ff-matrix-product { grid-template-columns: minmax(0, 1fr); }
+  .ff-projection-arrow { transform: rotate(90deg); }
   .ff-intro { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
   .ff-model-mark { justify-content: start; gap: 1.6rem; }
   .ff-model-mark strong { font-size: 2.1rem; }
@@ -295,7 +311,7 @@
   .ff-condition-bar > p { margin: 0; }
   .ff-trace-badge { width: 100%; }
   .ff-architecture ol { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .ff-architecture li:nth-child(4) { border-left: 0; }
+  .ff-architecture li:nth-child(3n+1) { border-left: 0; }
   .ff-architecture li:nth-child(n+4) { border-top: 1px solid var(--border); }
   .ff-architecture a { min-height: 81px; flex-direction: row; font-size: .75rem; padding: .8rem .55rem; gap: .35rem; }
   .ff-architecture small { display: none; }
@@ -322,6 +338,8 @@
   .ff-pair-vector { gap: .4rem; }
   .ff-pair-vector > span { min-width: 28px; font-size: .7rem; }
   .ff-pair-cells { gap: 2px; }
+  .ff-head-groups { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .ff-projection-matrix .ff-matrix-operator { font-size: .65rem; }
   .ff-pair-cell { height: 20px; }
   .ff-score-calculation { gap: .6rem; padding: .75rem; }
   .ff-score-calculation strong { font-size: 1rem; }

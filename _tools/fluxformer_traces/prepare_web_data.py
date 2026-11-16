@@ -62,7 +62,21 @@ def prepare(source, output):
         "verification": manifest["verification"],
         "source_common_sha256": manifest["common_sha256"],
         "samples": [],
+        "projection_parameters": [],
     }
+    for i in range(config["n_layers"]):
+        filename = f"projection-layer-{i}.json.gz"
+        parameters = common["parameters"]
+        prefix = f"layers.{i}.attention_block"
+        write(output / filename, {
+            "index": i,
+            "weight": parameters[f"{prefix}.mha.in_proj_weight"]["data"],
+            "bias": parameters[f"{prefix}.mha.in_proj_bias"]["data"],
+            "norm_weight": parameters[f"{prefix}.layer_norm.weight"]["data"],
+            "norm_bias": parameters[f"{prefix}.layer_norm.bias"]["data"],
+            "eps": common["model"]["layer_settings"][i]["attention_norm_eps"],
+        })
+        meta["projection_parameters"].append({"file": filename, "sha256": digest(output / filename)})
     for example in manifest["examples"]:
         if digest(source / example["file"]) != example["sha256"]:
             raise ValueError(f"Sample hash mismatch: {example['file']}")

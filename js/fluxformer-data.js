@@ -1,5 +1,19 @@
 // Read verified, precomputed traces. No model inference or input editing.
-export const steps = ["initialize", "attention", "mix", "feedforward", "layers", "predictions"];
+export const steps = ["initialize", "projections", "attention", "mix", "feedforward", "layers", "predictions"];
+
+export function projectionEvidence(layer, parameters, kind, reaction, head, feature) {
+  const offset = { query: 0, key: 128, value: 256 }[kind];
+  if (offset === undefined) throw new Error("Unknown projection");
+  const outputFeature = head * 16 + feature;
+  const normalized = layer.operations.attention_norm[reaction];
+  // PyTorch Linear stores [output, input]; the equation uses its transpose.
+  const weights = parameters.weight[offset + outputFeature];
+  const bias = parameters.bias[offset + outputFeature];
+  const products = normalized.map((value, i) => value * weights[i]);
+  const sum = products.reduce((total, value) => total + value, 0);
+  return { normalized, weights, bias, products, sum, reconstructed: sum + bias,
+    outputFeature, output: layer.operations[kind][head][reaction][feature] };
+}
 
 export function format(value, digits = 5) {
   if (!Number.isFinite(value)) throw new Error("Non-finite trace value");
@@ -65,6 +79,7 @@ export class TraceStore {
     this.fetcher = fetcher;
     this.overviews = new Map();
     this.layers = new Map();
+    this.projections = new Map();
   }
 
   async read(filename) {
@@ -106,6 +121,20 @@ export class TraceStore {
       this.overviews.set(sample.row, request);
     }
     return this.overviews.get(sample.row);
+  }
+
+  projectionParameters(index) {
+    if (!this.projections.has(index)) {
+      const request = this.metadata().then(meta => this.read(meta.projection_parameters[index].file)).then(data => {
+        if (data.index !== index || data.weight.length !== 384 || data.weight.some(row => row.length !== 128) ||
+            data.bias.length !== 384 || data.norm_weight.length !== 128 || data.norm_bias.length !== 128 || !(data.eps > 0)) {
+          throw new Error("Unexpected learned projection parameters.");
+        }
+        return data;
+      }).catch(error => { this.projections.delete(index); throw error; });
+      this.projections.set(index, request);
+    }
+    return this.projections.get(index);
   }
 
   layer(sample, index) {
