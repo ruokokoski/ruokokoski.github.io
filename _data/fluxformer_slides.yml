@@ -150,7 +150,8 @@
   title: Predicting growth
   content: |
     - 110 experimental E. coli nutrient conditions.
-    - 1–4 variable carbon sources per condition, with a fixed basal medium.
+    - 1–10 variable carbon sources per condition, with a fixed basal medium.
+      - Binary vector C<sub>med</sub> (present/absent).
     - Goal: predict microbial growth rate.
   image: /pics/fluxformer/growth-prediction-pipeline.png
   alt: Panel A shows the growth-prediction pipeline. Binary medium composition enters an MLP, which predicts exchange constraints for pretrained FluxFormer. Predicted steady-state fluxes include the biomass flux used to predict growth.
@@ -160,15 +161,27 @@
   title: Growth prediction results
   content: |
     - All five applicable FluxFormer models outperform the baselines.
-    - Broad model E: <i>R</i><sup>2</sup> = 0.86.
-    - Task-specific model A: <i>R</i><sup>2</sup> = 0.88.
+  comparison_table:
+    label: Growth prediction R squared comparison
+    compact: true
+    headers: [Model, R²]
+    rows:
+      - model: A
+        values: ["0.88"]
+      - model: A ∪ B
+        values: ["0.87"]
+      - model: C
+        values: ["0.87"]
+      - model: D
+        values: ["0.87"]
+      - model: E
+        values: ["0.86"]
+      - model: TabPFN
+        values: ["0.80"]
+      - model: AMN
+        values: ["0.78"]
   image: /pics/fluxformer/growth-prediction-results.png
   alt: Article Figure 4 compares predicted and measured growth rates for models A and E, with uncertainty bars, identity lines, and the original repeat-level performance annotations retained in each panel.
-  comparison:
-    - label: Published AMN
-      score: ≈ 0.78
-    - label: TabPFN-3
-      score: = 0.806
   notes: |
     All five applicable FluxFormer models perform better than the published AMN models and our TabPFN baseline. The most interesting result is that the broadly pretrained model E performs almost as well as the specialized model A. Models A union B, C, and D also obtain similar results. This suggests that we can train on a much wider range of nutrient conditions without losing much accuracy on a particular experimental task.
 - id: missing-flux

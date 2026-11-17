@@ -1,4 +1,4 @@
-<div class="slide-table{% if include.table.wide %} slide-table-wide{% endif %}">
+<div class="slide-table{% if include.table.wide %} slide-table-wide{% endif %}{% if include.table.compact %} slide-table-compact{% endif %}">
   <table class="slide-metrics">
     <caption>{{ include.table.label | escape }}</caption>
     <thead>

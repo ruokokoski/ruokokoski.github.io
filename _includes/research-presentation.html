@@ -55,6 +55,7 @@
                 <p class="slide-placeholder-text">Slide content to be added.</p>
               {% endif %}
               {% if slide.equation == 'fba' %}{% include presentation-equation-fba.html %}{% endif %}
+              {% if slide.comparison_table %}{% include presentation-table.html table=slide.comparison_table %}{% endif %}
             </div>
             {% endunless %}
             {% unless slide.layout == 'text' %}
