@@ -5,6 +5,7 @@ repository: "ruokokoski/ruokokoski.github.io"
 lang: "en"
 author: "Teemu Ruokokoski"
 description: "Projects, code, and ideas on AI, modeling, and scientific computing."
+show_research_slides: false
 
 # Email / Social media user names used by the minima theme:
 # All of these are optional and can be removed or commented out
