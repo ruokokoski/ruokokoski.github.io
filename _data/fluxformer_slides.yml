@@ -150,7 +150,7 @@
   title: Predicting growth
   content: |
     - 110 experimental E. coli nutrient conditions.
-    - 1–10 variable carbon sources per condition, with a fixed basal medium.
+    - 1–4 variable carbon sources per condition, with a fixed basal medium.
       - Binary vector C<sub>med</sub> (present/absent).
     - Goal: predict microbial growth rate.
   image: /pics/fluxformer/growth-prediction-pipeline.png
